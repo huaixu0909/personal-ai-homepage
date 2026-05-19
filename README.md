@@ -2,7 +2,7 @@
 
 这是一个面向大模型应用开发、AI Agent、RAG 和 AI 工程化方向的个人作品集网站。
 
-当前项目是整个 `Yunhao AI Lab` 的统一入口，用来展示个人介绍、核心项目、项目详情页，以及后续的 Demo、文章和技术实验。
+当前项目是整个 `Yunhao AI Lab` 的统一入口，用来展示个人介绍、核心项目、项目详情页和可交互 Demo 页面。
 
 ## 当前功能
 
@@ -10,8 +10,10 @@
 - 核心项目展示区
 - 企业知识库 RAG Agent 系统详情页
 - JD-简历匹配与学习规划系统详情页
-- 本地 Demo 跳转入口
+- RAG Agent 可交互 Demo 页面
+- JD 简历分析可交互 Demo 页面
 - GitHub 仓库跳转入口
+- 本地三服务联调
 
 ## 技术栈
 
@@ -20,7 +22,17 @@
 - Tailwind CSS
 - App Router
 
-## 本地运行
+## 页面路径
+
+```text
+/                              首页
+/projects/rag-agent            RAG Agent 项目详情页
+/projects/jd-resume-analyzer   JD 简历分析项目详情页
+/demos/rag-agent               RAG Agent 可交互 Demo
+/demos/jd-resume-analyzer      JD 简历分析可交互 Demo
+```
+
+## 本地运行个人主页
 
 ```powershell
 cd "D:\Code\codex\AI lab\personal-ai-homepage"
@@ -34,65 +46,108 @@ npm.cmd run dev
 http://localhost:3000
 ```
 
-## 页面路径
+## 完整三服务启动流程
 
-```text
-/                              首页
-/projects/rag-agent            RAG Agent 项目详情页
-/projects/jd-resume-analyzer   JD 简历分析项目详情页
+本项目的两个 Demo 页面会调用本地后端服务，因此完整联调时需要同时启动三个服务。
+
+### 1. 启动 RAG 后端
+
+```powershell
+cd "D:\Code\codex\AI lab\rag-agent-system"
+D:\Download\Coding\CondaData\envs_dirs\llm_env\python.exe -m pip install -r requirements.txt
+D:\Download\Coding\CondaData\envs_dirs\llm_env\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-## 关联项目
-
-### rag-agent-system
-
-企业知识库 RAG Agent 系统最小原型。
-
-本地服务地址：
+RAG 后端地址：
 
 ```text
 http://localhost:8000
+http://localhost:8000/docs
 ```
 
-GitHub 仓库：
+### 2. 启动 JD 分析后端
 
-```text
-git@github.com:huaixu0909/rag-agent-system.git
+```powershell
+cd "D:\Code\codex\AI lab\jd-resume-analyzer"
+D:\Download\Coding\CondaData\envs_dirs\llm_env\python.exe -m pip install -r requirements.txt
+D:\Download\Coding\CondaData\envs_dirs\llm_env\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-### jd-resume-analyzer
-
-JD-简历匹配与学习规划系统最小原型。
-
-本地服务地址：
+JD 分析后端地址：
 
 ```text
 http://localhost:8001
+http://localhost:8001/docs
 ```
 
-GitHub 仓库：
+### 3. 启动个人主页
+
+```powershell
+cd "D:\Code\codex\AI lab\personal-ai-homepage"
+npm.cmd run dev
+```
+
+个人主页地址：
 
 ```text
+http://localhost:3000
+```
+
+## 前端 Demo 与后端接口关系
+
+### RAG Agent Demo
+
+前端页面：
+
+```text
+http://localhost:3000/demos/rag-agent
+```
+
+调用后端接口：
+
+```text
+GET  http://localhost:8000/health
+POST http://localhost:8000/api/chat
+```
+
+### JD 简历分析 Demo
+
+前端页面：
+
+```text
+http://localhost:3000/demos/jd-resume-analyzer
+```
+
+调用后端接口：
+
+```text
+GET  http://localhost:8001/health
+POST http://localhost:8001/api/analyze
+```
+
+## 本地验收清单
+
+- `http://localhost:3000` 可以打开首页
+- 首页两个项目卡片可以跳转到详情页
+- 首页两个项目卡片可以跳转到 Demo 页面
+- `http://localhost:3000/demos/rag-agent` 可以发送问题并展示回答和 sources
+- `http://localhost:3000/demos/jd-resume-analyzer` 可以提交 JD 和简历文本，并展示匹配分数、技能差距和学习计划
+- 后端未启动时，Demo 页面能显示清晰错误提示
+
+## 关联仓库
+
+```text
+git@github.com:huaixu0909/personal-ai-homepage.git
+git@github.com:huaixu0909/rag-agent-system.git
 git@github.com:huaixu0909/jd-resume-analyzer.git
 ```
 
-## 本地联调
-
-建议同时启动三个服务：
-
-```text
-personal-ai-homepage  http://localhost:3000
-rag-agent-system      http://localhost:8000
-jd-resume-analyzer    http://localhost:8001
-```
-
-从首页点击两个项目的“本地 Demo”，应分别跳转到对应后端服务。
-
 ## 后续计划
 
-- 增加项目截图和 Demo 页面
-- 增加文章列表和 Markdown/MDX 内容渲染
-- 将后端 JSON 首页升级为可交互 Demo 页面
-- 完成三个项目的本地联调
-- 功能完善后再部署到线上
+- 给 RAG Demo 增加文档上传区域
+- 给 RAG 后端增加文档解析、文本切分和向量检索
+- 给 JD Demo 接入真实 LLM 结构化分析
+- 给 JD 后端增加 PDF 简历解析
+- 增加项目截图、文章列表和技术复盘
+- 功能较完整后再进行线上部署
 
