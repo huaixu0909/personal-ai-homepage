@@ -4,9 +4,9 @@ const githubUrl = "https://github.com/huaixu0909/jd-resume-analyzer";
 
 export default function JdResumeAnalyzerProjectPage() {
   return (
-    <main className="min-h-screen bg-white text-zinc-900">
+    <main className="min-h-screen bg-white text-zinc-950">
       <header className="border-b border-zinc-200">
-        <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="font-semibold">
             Yunhao AI Lab
           </Link>
@@ -20,7 +20,7 @@ export default function JdResumeAnalyzerProjectPage() {
         </nav>
       </header>
 
-      <section className="mx-auto max-w-5xl px-6 py-16">
+      <section className="mx-auto max-w-6xl px-6 py-16">
         <p className="mb-4 text-sm font-medium text-blue-600">Project 02</p>
         <h1 className="max-w-3xl text-4xl font-bold tracking-tight">
           JD-简历匹配与学习规划系统
@@ -30,12 +30,12 @@ export default function JdResumeAnalyzerProjectPage() {
         </p>
 
         <div className="mt-8 flex flex-wrap gap-4">
-          <a
-            href="http://localhost:8001"
-            className="rounded-md bg-zinc-900 px-5 py-3 text-sm font-medium text-white"
+          <Link
+            href="/demos/jd-resume-analyzer"
+            className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
           >
             打开本地 Demo
-          </a>
+          </Link>
           <a
             href={githubUrl}
             target="_blank"
@@ -47,7 +47,7 @@ export default function JdResumeAnalyzerProjectPage() {
       </section>
 
       <section className="border-t border-zinc-200 bg-zinc-50">
-        <div className="mx-auto grid max-w-5xl gap-10 px-6 py-14 md:grid-cols-2">
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 md:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold">MVP 功能</h2>
             <ul className="mt-5 space-y-3 text-zinc-600">
@@ -72,10 +72,10 @@ export default function JdResumeAnalyzerProjectPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-14">
+      <section className="mx-auto max-w-6xl px-6 py-14">
         <h2 className="text-2xl font-bold">当前开发状态</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-600">
-          当前处于最小原型规划阶段。下一步会先实现文本输入、结构化分析 Prompt 和固定样例结果展示，再接入真实 LLM API。
+          当前已经完成 FastAPI 最小原型和前端 Demo 页联调。下一步会接入真实 LLM API、结构化 Prompt 和简历 PDF 解析。
         </p>
 
         <h2 className="mt-10 text-2xl font-bold">后续计划</h2>
