@@ -8,7 +8,7 @@ export default function RagAgentProjectPage() {
       <header className="border-b border-zinc-200">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="font-semibold">
-            Yunhao AI Lab
+            曾见云霞满天 AI Lab
           </Link>
           <div className="flex gap-5 text-sm text-zinc-600">
             <Link href="/">Home</Link>
@@ -22,7 +22,7 @@ export default function RagAgentProjectPage() {
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <p className="mb-4 text-sm font-medium text-blue-600">Project 01</p>
-        <h1 className="max-w-3xl text-4xl font-bold tracking-tight">
+        <h1 className="font-display max-w-3xl text-4xl font-bold">
           企业知识库 RAG Agent 系统
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-8 text-zinc-600">

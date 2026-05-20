@@ -2,147 +2,245 @@ import Link from "next/link";
 
 const githubUrl = "https://github.com/huaixu0909";
 
+const projects = [
+  {
+    id: "01",
+    name: "RAG Agent System",
+    cnName: "企业知识库 RAG Agent",
+    status: "v0.8 / DeepSeek",
+    description:
+      "支持文档上传、结构增强 chunking、相似度检索和 DeepSeek RAG 问答的本地知识库系统。",
+    stack: ["FastAPI", "RAG", "DeepSeek", "Next.js"],
+    demoHref: "/demos/rag-agent",
+    detailHref: "/projects/rag-agent",
+    githubHref: `${githubUrl}/rag-agent-system`,
+    accent: "bg-cyan-300",
+  },
+  {
+    id: "02",
+    name: "JD Resume Analyzer",
+    cnName: "JD-简历匹配系统",
+    status: "MVP / Local",
+    description:
+      "输入岗位 JD 和简历文本，分析匹配度、技能差距，并生成面向求职准备的学习计划。",
+    stack: ["FastAPI", "NLP", "Scoring", "Planner"],
+    demoHref: "/demos/jd-resume-analyzer",
+    detailHref: "/projects/jd-resume-analyzer",
+    githubHref: `${githubUrl}/jd-resume-analyzer`,
+    accent: "bg-lime-300",
+  },
+];
+
+const labSignals = [
+  ["Homepage", "localhost:3000", "ONLINE"],
+  ["RAG Agent", "localhost:8000", "DEEPSEEK"],
+  ["JD Analyzer", "localhost:8001", "MVP"],
+];
+
+const telemetry = [
+  ["RAG", "Retrieval chain active"],
+  ["LLM", "DeepSeek response mode"],
+  ["UI", "Future lab interface"],
+  ["DATA", "Local documents isolated"],
+];
+
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white text-zinc-950">
-      <header className="border-b border-zinc-200 bg-white/90">
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="font-semibold">
-            Yunhao AI Lab
+    <main className="min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
+      <div className="pointer-events-none fixed inset-0 opacity-40 [background-image:linear-gradient(rgba(103,232,249,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.12)_1px,transparent_1px)] [background-size:56px_56px]" />
+      <div className="pointer-events-none fixed inset-0 [background-image:radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_78%_12%,rgba(163,230,53,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(5,7,11,0.92))]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 h-1 bg-cyan-300" />
+
+      <header className="sticky top-0 z-30 border-b border-cyan-300/20 bg-[#05070b]/86 backdrop-blur">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
+          <Link href="/" className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-100">
+            曾见云霞满天 AI Lab
           </Link>
-          <div className="flex gap-5 text-sm text-zinc-600">
-            <Link href="/">Home</Link>
-            <a href="#projects">Projects</a>
-            <a href="#about">About</a>
-            <a href={githubUrl} target="_blank">
+          <div className="flex items-center gap-5 text-xs font-medium uppercase tracking-[0.16em] text-zinc-400">
+            <a className="transition hover:text-cyan-200" href="#projects">
+              Projects
+            </a>
+            <a className="transition hover:text-cyan-200" href="#about">
+              About
+            </a>
+            <a className="transition hover:text-cyan-200" href={githubUrl} target="_blank">
               GitHub
             </a>
           </div>
         </nav>
       </header>
 
-      <section className="mx-auto grid max-w-6xl gap-10 px-6 py-20 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-        <div>
-          <p className="mb-4 text-sm font-medium text-blue-600">
-            AI Application Engineer / LLM Agent Builder
-          </p>
+      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-65px)] max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+        <div className="pb-8">
+          <div className="inline-flex border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100">
+            AI Application Lab / RAG Builder / Agent Systems
+          </div>
 
-          <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
-            杜云昊的 AI 工程实验室
+          <h1 className="font-display mt-7 max-w-5xl text-5xl font-black leading-[0.96] text-white sm:text-7xl lg:text-8xl">
+            曾见云霞满天的
+            <span className="block text-cyan-200">AI 工程实验室</span>
           </h1>
 
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-600">
-            关注 LLM、RAG、Agent 和 AI 工程化，正在构建面向大模型应用开发方向的个人作品集。
+          <p className="mt-8 max-w-2xl border-l border-cyan-300/50 pl-5 text-base leading-8 text-zinc-300 sm:text-lg">
+            一个面向 LLM、RAG、Agent 和 AI 工程化的可运行作品空间。这里不只展示项目，也展示接口、
+            本地服务、检索链路和可以被追问的系统细节。
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="mt-9 flex flex-wrap gap-3">
             <a
               href="#projects"
-              className="rounded-md bg-zinc-950 px-5 py-3 text-sm font-medium text-white"
+              className="border border-cyan-300 bg-cyan-300 px-5 py-3 text-sm font-black text-zinc-950 transition hover:bg-white"
             >
-              查看项目
+              进入项目舱
             </a>
-            <a
-              href={githubUrl}
-              target="_blank"
-              className="rounded-md border border-zinc-300 px-5 py-3 text-sm font-medium"
+            <Link
+              href="/demos/rag-agent"
+              className="border border-zinc-500 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-100 transition hover:border-lime-300 hover:text-lime-200"
             >
-              GitHub
-            </a>
+              打开 RAG 控制台
+            </Link>
           </div>
-        </div>
 
-        <div className="border border-zinc-200 bg-zinc-50 p-6">
-          <p className="text-sm font-medium text-zinc-500">Local Lab Status</p>
-          <div className="mt-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
-              <span className="font-medium">Homepage</span>
-              <span className="text-sm text-zinc-500">localhost:3000</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
-              <span className="font-medium">RAG Agent</span>
-              <span className="text-sm text-zinc-500">localhost:8000</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="font-medium">JD Analyzer</span>
-              <span className="text-sm text-zinc-500">localhost:8001</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="projects" className="border-t border-zinc-200 bg-zinc-50">
-        <div className="mx-auto max-w-6xl px-6 py-16">
-          <h2 className="text-2xl font-bold">核心项目</h2>
-
-          <div className="mt-8 grid gap-6 md:grid-cols-2">
-            <article className="border border-zinc-200 bg-white p-6">
-              <h3 className="text-xl font-semibold">
-                企业知识库 RAG Agent 系统
-              </h3>
-              <p className="mt-3 text-zinc-600">
-                基于 FastAPI、LangGraph 和向量数据库构建的知识库问答系统，支持文档上传、检索问答和引用溯源。
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3 text-sm">
-                <Link className="font-medium text-blue-600" href="/demos/rag-agent">
-                  本地 Demo
-                </Link>
-                <a
-                  className="font-medium text-blue-600"
-                  href={`${githubUrl}/rag-agent-system`}
-                  target="_blank"
-                >
-                  GitHub
-                </a>
-                <Link className="font-medium text-blue-600" href="/projects/rag-agent">
-                  查看详情
-                </Link>
+          <div className="mt-10 grid max-w-2xl grid-cols-2 border border-cyan-300/20 bg-black/30 sm:grid-cols-4">
+            {telemetry.map(([label, text]) => (
+              <div key={label} className="border-r border-cyan-300/20 p-4 last:border-r-0">
+                <p className="text-lg font-black text-cyan-200">{label}</p>
+                <p className="mt-2 text-xs leading-5 text-zinc-500">{text}</p>
               </div>
-            </article>
+            ))}
+          </div>
+        </div>
 
-            <article className="border border-zinc-200 bg-white p-6">
-              <h3 className="text-xl font-semibold">
-                JD-简历匹配与学习规划系统
-              </h3>
-              <p className="mt-3 text-zinc-600">
-                输入岗位 JD 和简历内容，自动分析匹配度、技能差距，并生成个性化学习计划。
-              </p>
-              <div className="mt-5 flex flex-wrap gap-3 text-sm">
-                <Link
-                  className="font-medium text-blue-600"
-                  href="/demos/jd-resume-analyzer"
-                >
-                  本地 Demo
-                </Link>
-                <a
-                  className="font-medium text-blue-600"
-                  href={`${githubUrl}/jd-resume-analyzer`}
-                  target="_blank"
-                >
-                  GitHub
-                </a>
-                <Link
-                  className="font-medium text-blue-600"
-                  href="/projects/jd-resume-analyzer"
-                >
-                  查看详情
-                </Link>
+        <div className="relative">
+          <div className="absolute -left-5 -top-5 h-24 w-24 border-l border-t border-cyan-300/60" />
+          <div className="absolute -bottom-5 -right-5 h-24 w-24 border-b border-r border-lime-300/60" />
+
+          <div className="border border-cyan-300/40 bg-[#08111b]/88 p-5 shadow-[0_0_50px_rgba(34,211,238,0.12)]">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-300">
+                  Local Lab Status
+                </p>
+                <h2 className="font-display mt-4 text-3xl font-black text-white">
+                  三服务联调工作台
+                </h2>
               </div>
-            </article>
+              <span className="border border-lime-300 bg-lime-300/10 px-3 py-1 text-xs font-black text-lime-200">
+                LIVE
+              </span>
+            </div>
+
+            <div className="mt-8 grid gap-0 border border-white/10">
+              {labSignals.map(([name, host, status]) => (
+                <div
+                  key={name}
+                  className="grid grid-cols-[1fr_auto] gap-4 border-b border-white/10 p-4 last:border-b-0"
+                >
+                  <div>
+                    <p className="font-semibold text-zinc-100">{name}</p>
+                    <p className="mt-1 text-sm text-zinc-500">{host}</p>
+                  </div>
+                  <span className="self-start bg-cyan-300 px-2 py-1 text-xs font-black text-zinc-950">
+                    {status}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 grid grid-cols-3 border border-white/10">
+              {["RAG", "AGENT", "LLM"].map((item) => (
+                <div key={item} className="border-r border-white/10 p-4 last:border-r-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                    Focus
+                  </p>
+                  <p className="mt-3 text-2xl font-black text-white">{item}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      <section id="about" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="text-2xl font-bold">关于我</h2>
-        <p className="mt-4 max-w-2xl leading-7 text-zinc-600">
-          计算机科学背景，关注大模型应用开发、Agent 工作流、知识库问答和 AI Coding。这个网站会持续记录我的项目、文章和技术实验。
-        </p>
+      <section id="projects" className="relative z-10 border-y border-cyan-300/20 bg-[#08111b]/90">
+        <div className="mx-auto max-w-7xl px-5 py-16">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-300">
+                Selected Systems
+              </p>
+              <h2 className="font-display mt-4 text-4xl font-black text-white">核心项目</h2>
+            </div>
+            <p className="max-w-md text-sm leading-6 text-zinc-400">
+              项目卡片采用未来控制台式结构：编号、状态、技术栈、演示入口和仓库入口在同一层级展开。
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-2">
+            {projects.map((project) => (
+              <article
+                key={project.id}
+                className="group border border-cyan-300/25 bg-black/35 p-5 transition hover:-translate-y-1 hover:border-cyan-300 hover:bg-[#0b1824]"
+              >
+                <div className="flex items-start justify-between gap-5 border-b border-cyan-300/20 pb-5">
+                  <div>
+                    <p className="text-sm font-black text-cyan-200">{project.id}</p>
+                    <h3 className="font-display mt-4 text-3xl font-black text-white">
+                      {project.name}
+                    </h3>
+                    <p className="mt-1 text-sm font-semibold text-zinc-400">{project.cnName}</p>
+                  </div>
+                  <span className="border border-cyan-300/40 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100">
+                    {project.status}
+                  </span>
+                </div>
+
+                <p className="mt-5 min-h-20 text-sm leading-7 text-zinc-300">{project.description}</p>
+
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {project.stack.map((item) => (
+                    <span
+                      key={item}
+                      className="border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-zinc-300"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-cyan-300/20 pt-5 text-sm font-semibold">
+                  <Link href={project.demoHref} className="text-cyan-200 hover:text-white">
+                    Demo
+                  </Link>
+                  <Link href={project.detailHref} className="text-cyan-200 hover:text-white">
+                    Detail
+                  </Link>
+                  <a href={project.githubHref} target="_blank" className="text-cyan-200 hover:text-white">
+                    GitHub
+                  </a>
+                  <span className={`ml-auto h-3 w-12 ${project.accent} shadow-[0_0_18px_currentColor]`} />
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
       </section>
 
-      <footer className="border-t border-zinc-200">
-        <div className="mx-auto flex max-w-6xl justify-between px-6 py-6 text-sm text-zinc-500">
-          <span>Yunhao AI Lab</span>
+      <section id="about" className="relative z-10 mx-auto grid max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[0.7fr_1.3fr]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">About</p>
+          <h2 className="font-display mt-4 text-4xl font-black text-white">关于这个实验室</h2>
+        </div>
+        <div className="border-l border-cyan-300/30 pl-6">
+          <p className="max-w-3xl text-lg leading-9 text-zinc-300">
+            这里聚焦大模型应用开发、Agent 工作流、知识库问答和 AI Coding。目标是把作品集做成能打开、
+            能测试、能追问的工程现场，让每一个项目都尽可能接近真实产品链路。
+          </p>
+        </div>
+      </section>
+
+      <footer className="relative z-10 border-t border-cyan-300/20 bg-black text-zinc-400">
+        <div className="mx-auto flex max-w-7xl justify-between px-5 py-6 text-xs font-semibold uppercase tracking-[0.18em]">
+          <span>曾见云霞满天 AI Lab</span>
           <span>Updated 2026</span>
         </div>
       </footer>

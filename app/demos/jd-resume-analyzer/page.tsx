@@ -100,7 +100,7 @@ export default function JdResumeAnalyzerDemoPage() {
       <header className="border-b border-zinc-200 bg-white">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="font-semibold">
-            Yunhao AI Lab
+            曾见云霞满天 AI Lab
           </Link>
           <div className="flex gap-5 text-sm text-zinc-600">
             <Link href="/#projects">Projects</Link>
@@ -116,7 +116,7 @@ export default function JdResumeAnalyzerDemoPage() {
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="text-sm font-medium text-blue-600">JD Resume Demo</p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight">
+            <h1 className="font-display mt-3 text-3xl font-bold">
               JD-简历匹配分析工作台
             </h1>
             <p className="mt-3 max-w-2xl text-zinc-600">

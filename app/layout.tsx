@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Yunhao AI Lab",
-  description: "Personal AI engineering portfolio by Yunhao Du.",
+  title: "曾见云霞满天 AI Lab",
+  description: "AI engineering portfolio for RAG, Agents, and LLM applications.",
 };
 
 export default function RootLayout({

@@ -3,13 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-ui: "Inter", "Segoe UI Variable", "Segoe UI", "HarmonyOS Sans SC",
+    "MiSans", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC",
+    Arial, sans-serif;
+  --font-display: "Space Grotesk", "Segoe UI Variable Display", "Segoe UI",
+    "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", "PingFang SC",
+    sans-serif;
+  --font-code: "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas,
+    "Liberation Mono", monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: var(--font-ui);
+  --font-mono: var(--font-code);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,4 +30,21 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: var(--font-ui);
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  text-rendering: geometricPrecision;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0;
+}
+
+code,
+pre,
+.font-code {
+  font-family: var(--font-code);
 }
