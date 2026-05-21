@@ -4,8 +4,11 @@ const githubUrl = "https://github.com/huaixu0909/rag-agent-system";
 
 export default function RagAgentProjectPage() {
   return (
-    <main className="min-h-screen bg-white text-zinc-950">
-      <header className="border-b border-zinc-200">
+    <main className="project-detail-theme min-h-screen overflow-hidden bg-[#10151d] text-zinc-100">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-22 [background-image:linear-gradient(rgba(236,214,167,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(236,214,167,0.1)_1px,transparent_1px)] [background-size:80px_80px]" />
+      <div className="pointer-events-none fixed inset-0 z-0 [background-image:radial-gradient(circle_at_18%_10%,rgba(236,214,167,0.12),transparent_30%),radial-gradient(circle_at_88%_12%,rgba(94,132,160,0.16),transparent_28%),linear-gradient(180deg,rgba(16,21,29,0.12),rgba(16,21,29,0.96))]" />
+
+      <header className="relative z-10 border-b border-[#ecd6a7]/20 bg-[#10151d]/88 backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <Link href="/" className="font-semibold">
             曾见云霞满天 AI Lab
@@ -20,7 +23,7 @@ export default function RagAgentProjectPage() {
         </nav>
       </header>
 
-      <section className="mx-auto max-w-6xl px-6 py-16">
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-16">
         <p className="mb-4 text-sm font-medium text-blue-600">Project 01</p>
         <h1 className="font-display max-w-3xl text-4xl font-bold">
           企业知识库 RAG Agent 系统
@@ -46,7 +49,7 @@ export default function RagAgentProjectPage() {
         </div>
       </section>
 
-      <section className="border-t border-zinc-200 bg-zinc-50">
+      <section className="relative z-10 border-t border-[#ecd6a7]/18 bg-[#17202b]/78">
         <div className="mx-auto grid max-w-6xl gap-10 px-6 py-14 md:grid-cols-2">
           <div>
             <h2 className="text-2xl font-bold">MVP 功能</h2>
@@ -72,7 +75,7 @@ export default function RagAgentProjectPage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-6 py-14">
+      <section className="relative z-10 mx-auto max-w-6xl px-6 py-14">
         <h2 className="text-2xl font-bold">当前开发状态</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-600">
           当前已经完成 FastAPI 最小原型和前端 Demo 页联调。下一步会加入文档上传、文本切分、向量数据库和真实 RAG 问答链路。
