@@ -46,17 +46,26 @@ type DocumentListResponse = {
 };
 
 type UploadQueueItem = {
+  file_id?: string;
   filename: string;
-  status: "queued" | "uploading" | "indexed" | "failed";
+  status: "queued" | "uploading" | "running" | "indexed" | "failed";
   stage: string;
+  document_id?: string;
   document?: DocumentRecord | null;
+  char_count?: number;
+  chunk_count?: number;
   error?: string;
 };
 
-type BatchUploadResponse = {
+type IngestTaskResponse = {
+  task_id: string;
+  status: "queued" | "running" | "completed" | "failed" | "partial_failed";
   total: number;
   succeeded: number;
   failed: number;
+  created_at: string;
+  updated_at: string;
+  completed_at: string;
   items: UploadQueueItem[];
 };
 
@@ -157,6 +166,12 @@ function modeLabel(mode?: string) {
   return mode || "Waiting";
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
 export default function RagAgentDemoPage() {
   const [question, setQuestion] = useState(sampleQuestion);
   const [topK, setTopK] = useState(5);
@@ -254,6 +269,29 @@ export default function RagAgentDemoPage() {
     setError("");
   };
 
+  const pollIngestTask = async (taskId: string) => {
+    let latestTask: IngestTaskResponse | null = null;
+
+    for (let attempt = 0; attempt < 600; attempt += 1) {
+      const response = await fetch(`${apiBaseUrl}/api/ingest-tasks/${taskId}`);
+      if (!response.ok) throw new Error(`任务状态查询失败：${response.status}`);
+
+      latestTask = (await response.json()) as IngestTaskResponse;
+      setUploadProgress(latestTask.items);
+      setUploadMessage(
+        `入库任务 ${latestTask.status}：成功 ${latestTask.succeeded} / ${latestTask.total}，失败 ${latestTask.failed}。`,
+      );
+
+      if (["completed", "failed", "partial_failed"].includes(latestTask.status)) {
+        return latestTask;
+      }
+
+      await delay(1000);
+    }
+
+    throw new Error("入库任务仍在执行，请稍后刷新文档库查看结果。");
+  };
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
@@ -264,7 +302,7 @@ export default function RagAgentDemoPage() {
       items.map((item) => ({
         ...item,
         status: "uploading",
-        stage: "上传解析中",
+        stage: "上传中",
       })),
     );
 
@@ -281,13 +319,15 @@ export default function RagAgentDemoPage() {
         throw new Error(detail?.detail ?? `上传失败：${response.status}`);
       }
 
-      const result = (await response.json()) as BatchUploadResponse;
-      setUploadProgress(result.items);
-      setUploadMessage(`上传完成：成功 ${result.succeeded} / ${result.total}，失败 ${result.failed}。`);
+      const createdTask = (await response.json()) as IngestTaskResponse;
+      setUploadProgress(createdTask.items);
+      setUploadMessage(`入库任务已创建：${createdTask.task_id}`);
       setSelectedFiles([]);
       setUploadInputKey((key) => key + 1);
       setApiOnline(true);
       setDocumentPage(1);
+
+      const result = await pollIngestTask(createdTask.task_id);
       await refreshWorkspace(1);
 
       const firstDocument = result.items.find((item) => item.document)?.document;
@@ -516,7 +556,7 @@ export default function RagAgentDemoPage() {
                     disabled={selectedFiles.length === 0 || uploadLoading}
                     className="border border-zinc-950 bg-zinc-950 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
                   >
-                    {uploadLoading ? "上传解析中..." : "批量上传并入库"}
+                    {uploadLoading ? "后台入库中..." : "批量上传并入库"}
                   </button>
                   {selectedFiles.length > 0 ? (
                     <span className="min-w-0 flex-1 truncate text-sm text-zinc-500">
