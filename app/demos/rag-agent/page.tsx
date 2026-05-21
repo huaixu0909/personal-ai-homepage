@@ -111,6 +111,9 @@ type SearchResult = {
   chunk_index: number;
   title: string;
   score: number;
+  vector_score: number;
+  lexical_score: number;
+  rerank_score: number;
   content: string;
   char_count: number;
   strategy: ChunkStrategy;
@@ -127,6 +130,8 @@ type SearchResponse = {
   total_chunks: number;
   results: SearchResult[];
   mode: "chroma" | "local_hash_embedding";
+  retrieval_strategy?: "hybrid_rerank";
+  query_terms?: string[];
 };
 
 type VectorStoreStatus = {
@@ -163,6 +168,7 @@ function modeLabel(mode?: string) {
   if (mode === "deepseek") return "DeepSeek";
   if (mode === "chroma") return "Chroma";
   if (mode === "local_hash_embedding") return "JSON Fallback";
+  if (mode === "hybrid_rerank") return "Hybrid Rerank";
   return mode || "Waiting";
 }
 
@@ -874,8 +880,21 @@ export default function RagAgentDemoPage() {
               {searchResult ? (
                 <div className="mt-4 space-y-3">
                   <p className="text-sm text-zinc-500">
-                    扫描 {searchResult.total_chunks} 个 chunks，阈值 {searchResult.score_threshold.toFixed(2)}。
+                    扫描 {searchResult.total_chunks} 个 chunks，阈值 {searchResult.score_threshold.toFixed(2)}，
+                    策略 {modeLabel(searchResult.retrieval_strategy)}。
                   </p>
+                  {searchResult.query_terms?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {searchResult.query_terms.slice(0, 12).map((term) => (
+                        <span
+                          key={term}
+                          className="border border-zinc-950/20 bg-[#f6f3ec] px-2 py-1 text-xs font-bold text-zinc-500"
+                        >
+                          {term}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   {searchResult.results.map((item, index) => (
                     <article key={item.chunk_id} className="border border-zinc-950 bg-[#f6f3ec] p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -888,6 +907,10 @@ export default function RagAgentDemoPage() {
                             {item.token_estimate ? ` / 约 ${item.token_estimate} tokens` : ""}
                             {pageLabel(item.page_start, item.page_end) ? ` / ${pageLabel(item.page_start, item.page_end)}` : ""}
                             {item.section_path?.length ? ` / ${item.section_path.join(" / ")}` : ""}
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            vector {item.vector_score.toFixed(3)} / lexical {item.lexical_score.toFixed(3)} / rerank{" "}
+                            {item.rerank_score.toFixed(3)}
                           </p>
                         </div>
                         <div className="h-2 w-28 border border-zinc-950 bg-white">
