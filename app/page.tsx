@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ParticleField from "./components/ParticleField";
 
 const githubUrl = "https://github.com/huaixu0909";
 
@@ -47,6 +48,7 @@ const telemetry = [
 export default function Home() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
+      <ParticleField />
       <div className="pointer-events-none fixed inset-0 opacity-40 [background-image:linear-gradient(rgba(103,232,249,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.12)_1px,transparent_1px)] [background-size:56px_56px]" />
       <div className="pointer-events-none fixed inset-0 [background-image:radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_78%_12%,rgba(163,230,53,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(5,7,11,0.92))]" />
       <div className="pointer-events-none fixed inset-x-0 top-0 h-1 bg-cyan-300" />
