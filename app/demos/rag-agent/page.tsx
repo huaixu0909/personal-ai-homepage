@@ -1,17 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useState } from "react";
 
 type Source = {
   title: string;
   content: string;
+  document_id?: string;
+  chunk_id?: string;
+  score?: number | null;
+  page_start?: number | null;
+  page_end?: number | null;
+  section_path?: string[];
 };
 
 type ChatResponse = {
   answer: string;
   sources: Source[];
-  mode: "deepseek" | "retrieval_template";
+  mode: "langgraph_deepseek" | "langchain_deepseek" | "deepseek" | "retrieval_template";
+  retrieval_mode?: "chroma" | "local_hash_embedding";
+  score_threshold?: number;
+  workflow?: "langgraph" | "manual";
+  graph_path?: string[];
 };
 
 type DocumentRecord = {
@@ -24,6 +34,30 @@ type DocumentRecord = {
   char_count: number;
   chunk_count: number;
   created_at: string;
+};
+
+type DocumentListResponse = {
+  items: DocumentRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  total_chunks: number;
+};
+
+type UploadQueueItem = {
+  filename: string;
+  status: "queued" | "uploading" | "indexed" | "failed";
+  stage: string;
+  document?: DocumentRecord | null;
+  error?: string;
+};
+
+type BatchUploadResponse = {
+  total: number;
+  succeeded: number;
+  failed: number;
+  items: UploadQueueItem[];
 };
 
 type ChunkStrategy =
@@ -80,13 +114,24 @@ type SearchResult = {
 type SearchResponse = {
   question: string;
   top_k: number;
+  score_threshold: number;
   total_chunks: number;
   results: SearchResult[];
-  mode: "local_hash_embedding";
+  mode: "chroma" | "local_hash_embedding";
+};
+
+type VectorStoreStatus = {
+  provider: "chroma";
+  available: boolean;
+  persist_path: string;
+  collection: string;
+  chunk_count: number;
+  embedding_provider: string;
 };
 
 const apiBaseUrl = "http://localhost:8000";
 const sampleQuestion = "这份文档里和 RAG 项目经验、技术能力最相关的内容是什么？";
+const documentsPerPage = 10;
 
 const strategyLabel: Record<string, string> = {
   semantic: "语义切分",
@@ -98,37 +143,74 @@ const strategyLabel: Record<string, string> = {
   section_semantic_split: "章节语义切分 + 长度兜底",
 };
 
-function pageLabel(start: number | null, end: number | null) {
+function pageLabel(start?: number | null, end?: number | null) {
   if (!start) return "";
   return end && end !== start ? `第 ${start}-${end} 页` : `第 ${start} 页`;
 }
 
+function modeLabel(mode?: string) {
+  if (mode === "langgraph_deepseek") return "LangGraph + DeepSeek";
+  if (mode === "langchain_deepseek") return "LangChain + DeepSeek";
+  if (mode === "deepseek") return "DeepSeek";
+  if (mode === "chroma") return "Chroma";
+  if (mode === "local_hash_embedding") return "JSON Fallback";
+  return mode || "Waiting";
+}
+
 export default function RagAgentDemoPage() {
   const [question, setQuestion] = useState(sampleQuestion);
+  const [topK, setTopK] = useState(5);
+  const [scoreThreshold, setScoreThreshold] = useState(0.2);
   const [chatResult, setChatResult] = useState<ChatResponse | null>(null);
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [documentPage, setDocumentPage] = useState(1);
+  const [documentTotal, setDocumentTotal] = useState(0);
+  const [documentTotalPages, setDocumentTotalPages] = useState(1);
+  const [totalDocumentChunks, setTotalDocumentChunks] = useState(0);
   const [documentDetail, setDocumentDetail] = useState<DocumentDetail | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [vectorStoreStatus, setVectorStoreStatus] = useState<VectorStoreStatus | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadInputKey, setUploadInputKey] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<UploadQueueItem[]>([]);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [rebuildLoading, setRebuildLoading] = useState(false);
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [uploadMessage, setUploadMessage] = useState("");
   const [latency, setLatency] = useState<number | null>(null);
 
-  const loadDocuments = async () => {
-    const response = await fetch(`${apiBaseUrl}/api/documents`);
+  const loadDocuments = useCallback(async (page: number) => {
+    const response = await fetch(`${apiBaseUrl}/api/documents?page=${page}&page_size=${documentsPerPage}`);
     if (!response.ok) throw new Error("文档列表加载失败");
-    setDocuments((await response.json()) as DocumentRecord[]);
-  };
+    const data = (await response.json()) as DocumentListResponse;
+    setDocuments(data.items);
+    setDocumentPage(data.page);
+    setDocumentTotal(data.total);
+    setDocumentTotalPages(data.total_pages);
+    setTotalDocumentChunks(data.total_chunks);
+  }, []);
+
+  const loadVectorStoreStatus = useCallback(async () => {
+    const response = await fetch(`${apiBaseUrl}/api/vector-store/status`);
+    if (response.ok) {
+      setVectorStoreStatus((await response.json()) as VectorStoreStatus);
+    }
+  }, []);
+
+  const refreshWorkspace = useCallback(async (page = documentPage) => {
+    await loadDocuments(page);
+    await loadVectorStoreStatus();
+  }, [documentPage, loadDocuments, loadVectorStoreStatus]);
 
   const loadDocumentDetail = async (documentId: string) => {
     setDetailLoading(true);
     setError("");
+
     try {
       const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}`);
       if (!response.ok) throw new Error(`文档详情加载失败：${response.status}`);
@@ -147,46 +229,81 @@ export default function RagAgentDemoPage() {
       try {
         const response = await fetch(`${apiBaseUrl}/health`);
         setApiOnline(response.ok);
-        if (response.ok) await loadDocuments();
+        if (response.ok) {
+          await loadDocuments(1);
+          await loadVectorStoreStatus();
+        }
       } catch {
         setApiOnline(false);
       }
     };
     bootstrap();
-  }, []);
+  }, [loadDocuments, loadVectorStoreStatus]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(event.target.files?.[0] ?? null);
+    const files = Array.from(event.target.files ?? []);
+    setSelectedFiles(files);
+    setUploadProgress(
+      files.map((file) => ({
+        filename: file.name,
+        status: "queued",
+        stage: "等待上传",
+      })),
+    );
     setUploadMessage("");
     setError("");
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
+
     setUploadLoading(true);
     setUploadMessage("");
     setError("");
+    setUploadProgress((items) =>
+      items.map((item) => ({
+        ...item,
+        status: "uploading",
+        stage: "上传解析中",
+      })),
+    );
+
     try {
       const formData = new FormData();
-      formData.append("file", selectedFile);
-      const response = await fetch(`${apiBaseUrl}/api/documents/upload`, {
+      selectedFiles.forEach((file) => formData.append("files", file));
+      const response = await fetch(`${apiBaseUrl}/api/documents/upload/batch`, {
         method: "POST",
         body: formData,
       });
+
       if (!response.ok) {
         const detail = await response.json().catch(() => null);
         throw new Error(detail?.detail ?? `上传失败：${response.status}`);
       }
-      const document = (await response.json()) as DocumentRecord;
-      setUploadMessage(
-        `上传成功：${document.filename}，解析 ${document.char_count} 字符，切分 ${document.chunk_count} 个 chunks。`,
-      );
-      setSelectedFile(null);
+
+      const result = (await response.json()) as BatchUploadResponse;
+      setUploadProgress(result.items);
+      setUploadMessage(`上传完成：成功 ${result.succeeded} / ${result.total}，失败 ${result.failed}。`);
+      setSelectedFiles([]);
+      setUploadInputKey((key) => key + 1);
       setApiOnline(true);
-      await loadDocuments();
-      await loadDocumentDetail(document.id);
+      setDocumentPage(1);
+      await refreshWorkspace(1);
+
+      const firstDocument = result.items.find((item) => item.document)?.document;
+      if (firstDocument) {
+        await loadDocumentDetail(firstDocument.id);
+      }
     } catch (uploadError) {
       setApiOnline(false);
+      setUploadProgress((items) =>
+        items.map((item) => ({
+          ...item,
+          status: "failed",
+          stage: "上传失败",
+          error: uploadError instanceof Error ? uploadError.message : "无法上传文件。",
+        })),
+      );
       setError(uploadError instanceof Error ? uploadError.message : "无法上传文件。");
     } finally {
       setUploadLoading(false);
@@ -197,24 +314,45 @@ export default function RagAgentDemoPage() {
     if (!window.confirm("确定要删除这个文档吗？原始文件、解析文本和 chunks 都会一起删除。")) {
       return;
     }
+
     setDeletingDocumentId(documentId);
     setError("");
+
     try {
       const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}`, {
         method: "DELETE",
       });
+
       if (!response.ok) {
         const detail = await response.json().catch(() => null);
         throw new Error(detail?.detail ?? `删除失败：${response.status}`);
       }
+
       if (documentDetail?.document.id === documentId) setDocumentDetail(null);
       setSearchResult(null);
       setChatResult(null);
-      await loadDocuments();
+      await refreshWorkspace();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "无法删除文档。");
     } finally {
       setDeletingDocumentId(null);
+    }
+  };
+
+  const handleRebuildVectorStore = async () => {
+    setRebuildLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/vector-store/rebuild`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error(`索引重建失败：${response.status}`);
+      await loadVectorStoreStatus();
+    } catch (rebuildError) {
+      setError(rebuildError instanceof Error ? rebuildError.message : "无法重建向量索引。");
+    } finally {
+      setRebuildLoading(false);
     }
   };
 
@@ -225,12 +363,18 @@ export default function RagAgentDemoPage() {
     setChatResult(null);
     setLatency(null);
     const startedAt = performance.now();
+
     try {
       const response = await fetch(`${apiBaseUrl}/api/search`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, top_k: 5 }),
+        body: JSON.stringify({
+          question,
+          top_k: topK,
+          score_threshold: scoreThreshold,
+        }),
       });
+
       if (!response.ok) throw new Error(`检索请求失败：${response.status}`);
       setSearchResult((await response.json()) as SearchResponse);
       setApiOnline(true);
@@ -249,12 +393,18 @@ export default function RagAgentDemoPage() {
     setChatResult(null);
     setLatency(null);
     const startedAt = performance.now();
+
     try {
       const response = await fetch(`${apiBaseUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, top_k: 5 }),
+        body: JSON.stringify({
+          question,
+          top_k: topK,
+          score_threshold: scoreThreshold,
+        }),
       });
+
       if (!response.ok) throw new Error(`问答请求失败：${response.status}`);
       setChatResult((await response.json()) as ChatResponse);
       setApiOnline(true);
@@ -266,6 +416,10 @@ export default function RagAgentDemoPage() {
       setChatLoading(false);
     }
   };
+
+  const currentDocumentPage = documentPage;
+  const totalDocumentPages = documentTotalPages;
+  const visibleDocuments = documents;
 
   return (
     <main className="min-h-screen bg-[#f6f3ec] text-zinc-950">
@@ -285,165 +439,402 @@ export default function RagAgentDemoPage() {
       </header>
 
       <section className="mx-auto max-w-7xl px-5 py-8">
-        <div className="grid gap-5 border-b border-zinc-950 pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="grid gap-5 border-b border-zinc-950 pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
-              RAG Agent Demo / DeepSeek Enabled
+              RAG Knowledge Console / Chroma / Qwen Embedding / DeepSeek
             </p>
             <h1 className="font-display mt-4 text-4xl font-black sm:text-6xl">
-              知识检索仪表盘
+              知识库问答工作台
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-700">
-              上传文档，观察结构增强 chunks、相似度召回、DeepSeek 回答和引用来源。这个页面更像工程控制台，
-              用来检查 RAG 链路是否可信。
+              首屏聚焦两个动作：添加资料、提出问题。下方文档库用于管理知识范围，右侧工作区展示回答、检索证据和文档细节。
             </p>
           </div>
-          <div className="border border-zinc-950 bg-white px-4 py-3 text-sm">
-            <span className="text-zinc-500">API</span>
-            <span
-              className={`ml-3 font-black ${
-                apiOnline ? "text-lime-600" : apiOnline === false ? "text-red-600" : "text-zinc-500"
-              }`}
-            >
-              {apiOnline ? "ONLINE" : apiOnline === false ? "OFFLINE" : "CHECKING"}
-            </span>
-            {latency !== null ? <span className="ml-3 text-zinc-500">{latency}ms</span> : null}
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="border border-zinc-950 bg-white px-4 py-3 text-sm">
+              <span className="text-zinc-500">API</span>
+              <span
+                className={`ml-3 font-black ${
+                  apiOnline ? "text-lime-600" : apiOnline === false ? "text-red-600" : "text-zinc-500"
+                }`}
+              >
+                {apiOnline ? "ONLINE" : apiOnline === false ? "OFFLINE" : "CHECKING"}
+              </span>
+              {latency !== null ? <span className="ml-3 text-zinc-500">{latency}ms</span> : null}
+            </div>
+            <div className="border border-zinc-950 bg-white px-4 py-3 text-sm">
+              <span className="text-zinc-500">Vector</span>
+              <span className="ml-3 font-black text-blue-700">
+                {vectorStoreStatus?.available ? "CHROMA" : "JSON FALLBACK"}
+              </span>
+              <span className="ml-3 text-zinc-500">
+                {vectorStoreStatus ? `${vectorStoreStatus.chunk_count} chunks` : "checking"}
+              </span>
+              {vectorStoreStatus ? (
+                <span className="ml-3 text-zinc-500">{vectorStoreStatus.embedding_provider}</span>
+              ) : null}
+            </div>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[0.72fr_1.28fr]">
+        <div className="mt-6 grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="space-y-5">
-            <section className="border border-zinc-950 bg-white p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-black">上传文档</h2>
-                <button type="button" onClick={loadDocuments} className="text-sm font-bold text-blue-700">
-                  刷新
-                </button>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
-                支持 .txt、.md、.pdf。后端会保存解析文本、生成结构增强 chunks 和 embedding。
-              </p>
-              <input
-                type="file"
-                accept=".txt,.md,.pdf"
-                onChange={handleFileChange}
-                className="mt-4 w-full border border-zinc-950 bg-[#f6f3ec] p-3 text-sm"
-              />
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploadLoading}
-                  className="border border-zinc-950 bg-zinc-950 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
-                >
-                  {uploadLoading ? "上传中..." : "上传并解析"}
-                </button>
-                {selectedFile ? <span className="text-sm text-zinc-500">{selectedFile.name}</span> : null}
-              </div>
-              {uploadMessage ? (
-                <p className="mt-4 border border-lime-500 bg-lime-100 p-3 text-sm text-zinc-800">
-                  {uploadMessage}
+            <div className="grid gap-5 lg:grid-cols-2">
+              <section className="border border-zinc-950 bg-white p-5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                      Step 01
+                    </p>
+                    <h2 className="mt-2 font-black">添加文档</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => refreshWorkspace()}
+                    className="text-sm font-bold text-blue-700"
+                  >
+                    刷新
+                  </button>
+                </div>
+                <p className="mt-3 text-sm leading-6 text-zinc-600">
+                  上传 PDF、Markdown 或 TXT。后端会解析文本、切分 chunks，并写入 Chroma。
                 </p>
-              ) : null}
-            </section>
+                <input
+                  key={uploadInputKey}
+                  type="file"
+                  accept=".txt,.md,.pdf"
+                  multiple
+                  onChange={handleFileChange}
+                  className="mt-5 w-full border border-zinc-950 bg-[#f6f3ec] p-3 text-sm"
+                />
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleUpload}
+                    disabled={selectedFiles.length === 0 || uploadLoading}
+                    className="border border-zinc-950 bg-zinc-950 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
+                  >
+                    {uploadLoading ? "上传解析中..." : "批量上传并入库"}
+                  </button>
+                  {selectedFiles.length > 0 ? (
+                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-500">
+                      已选择 {selectedFiles.length} 个文件
+                    </span>
+                  ) : null}
+                </div>
+                {uploadProgress.length > 0 ? (
+                  <div className="mt-4 grid gap-2">
+                    {uploadProgress.map((item, index) => (
+                      <div
+                        key={`${item.filename}-${index}`}
+                        className="flex items-center justify-between gap-3 border border-zinc-950/20 bg-[#f6f3ec] px-3 py-2 text-xs"
+                      >
+                        <span className="min-w-0 flex-1 truncate font-bold">{item.filename}</span>
+                        <span
+                          className={`shrink-0 font-black ${
+                            item.status === "indexed"
+                              ? "text-lime-700"
+                              : item.status === "failed"
+                                ? "text-red-700"
+                                : "text-blue-700"
+                          }`}
+                        >
+                          {item.status === "indexed"
+                            ? "已入库"
+                            : item.status === "failed"
+                              ? "失败"
+                              : item.stage}
+                        </span>
+                        {item.error ? <span className="max-w-32 truncate text-red-700">{item.error}</span> : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {uploadMessage ? (
+                  <p className="mt-4 border border-lime-500 bg-lime-100 p-3 text-sm text-zinc-800">
+                    {uploadMessage}
+                  </p>
+                ) : null}
+              </section>
+
+              <section className="border border-zinc-950 bg-zinc-950 p-5 text-white">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                      Step 02
+                    </p>
+                    <h2 className="mt-2 font-black">提出问题</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuestion(sampleQuestion)}
+                    className="text-sm font-bold text-lime-300"
+                  >
+                    示例
+                  </button>
+                </div>
+                <textarea
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  className="mt-5 min-h-36 w-full resize-none border border-white/20 bg-black p-4 text-sm leading-6 text-white outline-none focus:border-lime-300"
+                />
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                    Top K
+                    <input
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={topK}
+                      onChange={(event) =>
+                        setTopK(Math.max(1, Math.min(20, Number(event.target.value) || 1)))
+                      }
+                      className="mt-2 w-full border border-white/20 bg-black p-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+                    Threshold {scoreThreshold.toFixed(2)}
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={scoreThreshold}
+                      onChange={(event) => setScoreThreshold(Number(event.target.value))}
+                      className="mt-3 w-full"
+                    />
+                  </label>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={handleChat}
+                    disabled={chatLoading || question.trim().length === 0}
+                    className="bg-lime-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+                  >
+                    {chatLoading ? "生成中..." : "生成回答"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSearch}
+                    disabled={searchLoading || question.trim().length === 0}
+                    className="border border-white/30 px-5 py-3 text-sm font-bold hover:border-lime-300"
+                  >
+                    {searchLoading ? "检索中..." : "只看检索"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuestion("");
+                      setSearchResult(null);
+                      setChatResult(null);
+                      setError("");
+                      setLatency(null);
+                    }}
+                    className="border border-white/30 px-5 py-3 text-sm font-bold"
+                  >
+                    清空
+                  </button>
+                </div>
+              </section>
+            </div>
+
+            {error ? (
+              <p className="border border-red-400 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+            ) : null}
 
             <section className="border border-zinc-950 bg-white p-5">
-              <h2 className="font-black">文档库</h2>
-              {documents.length > 0 ? (
-                <div className="mt-4 grid gap-3">
-                  {documents.map((document) => (
-                    <div
-                      key={document.id}
-                      className={`border p-4 transition ${
-                        documentDetail?.document.id === document.id
-                          ? "border-blue-700 bg-blue-50"
-                          : "border-zinc-950 bg-[#f6f3ec] hover:bg-white"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={() => loadDocumentDetail(document.id)}
-                          className="min-w-0 flex-1 text-left"
-                        >
-                          <h3 className="truncate font-bold">{document.filename}</h3>
-                          <p className="mt-1 text-xs text-zinc-500">
-                            {document.file_type} / {document.char_count} 字符 / {document.chunk_count} chunks
-                          </p>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteDocument(document.id)}
-                          disabled={deletingDocumentId === document.id}
-                          className="border border-red-300 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:text-zinc-400"
-                        >
-                          {deletingDocumentId === document.id ? "删除中" : "删除"}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                    Knowledge Scope
+                  </p>
+                  <h2 className="mt-2 font-black">文档库</h2>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <span className="border border-zinc-950 bg-[#f6f3ec] px-3 py-1 text-xs font-bold">
+                    {documentTotal} docs
+                  </span>
+                  <span className="border border-zinc-950 bg-[#f6f3ec] px-3 py-1 text-xs font-bold">
+                    {totalDocumentChunks} chunks
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleRebuildVectorStore}
+                    disabled={rebuildLoading}
+                    className="border border-zinc-950 px-3 py-1 text-xs font-bold text-blue-700 disabled:text-zinc-400"
+                  >
+                    {rebuildLoading ? "重建中" : "重建索引"}
+                  </button>
+                </div>
+              </div>
+
+              {documents.length > 0 ? (
+                <>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {visibleDocuments.map((document) => (
+                      <div
+                        key={document.id}
+                        className={`border p-4 transition ${
+                          documentDetail?.document.id === document.id
+                            ? "border-blue-700 bg-blue-50"
+                            : "border-zinc-950 bg-[#f6f3ec] hover:bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            type="button"
+                            onClick={() => loadDocumentDetail(document.id)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <h3 className="truncate font-bold">{document.filename}</h3>
+                            <p className="mt-1 text-xs text-zinc-500">
+                              {document.file_type} / {document.char_count} 字符 / {document.chunk_count} chunks
+                            </p>
+                            <p className="mt-2 text-xs text-zinc-400">
+                              {new Date(document.created_at).toLocaleString()}
+                            </p>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(document.id)}
+                            disabled={deletingDocumentId === document.id}
+                            className="border border-red-300 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:text-zinc-400"
+                          >
+                            {deletingDocumentId === document.id ? "删除中" : "删除"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-950 pt-4">
+                    <p className="text-xs font-bold text-zinc-500">
+                      第 {currentDocumentPage} / {totalDocumentPages} 页，每页 {documentsPerPage} 份
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => refreshWorkspace(Math.max(1, currentDocumentPage - 1))}
+                        disabled={currentDocumentPage <= 1}
+                        className="border border-zinc-950 px-3 py-2 text-xs font-bold disabled:border-zinc-300 disabled:text-zinc-400"
+                      >
+                        上一页
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => refreshWorkspace(Math.min(totalDocumentPages, currentDocumentPage + 1))}
+                        disabled={currentDocumentPage >= totalDocumentPages}
+                        className="border border-zinc-950 px-3 py-2 text-xs font-bold disabled:border-zinc-300 disabled:text-zinc-400"
+                      >
+                        下一页
+                      </button>
+                    </div>
+                  </div>
+                </>
               ) : (
                 <div className="mt-4 border border-dashed border-zinc-500 p-6 text-sm text-zinc-500">
                   暂无文档。先上传一份 PDF、Markdown 或 TXT。
                 </div>
               )}
             </section>
-
-            <section className="border border-zinc-950 bg-zinc-950 p-5 text-white">
-              <div className="flex items-center justify-between">
-                <h2 className="font-black">问题输入</h2>
-                <button type="button" onClick={() => setQuestion(sampleQuestion)} className="text-sm font-bold text-lime-300">
-                  示例
-                </button>
-              </div>
-              <textarea
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                className="mt-4 min-h-40 w-full resize-none border border-white/20 bg-black p-4 text-sm leading-6 text-white outline-none focus:border-lime-300"
-              />
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleSearch}
-                  disabled={searchLoading || question.trim().length === 0}
-                  className="bg-lime-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
-                >
-                  {searchLoading ? "检索中..." : "检索 chunks"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleChat}
-                  disabled={chatLoading || question.trim().length === 0}
-                  className="border border-white/30 px-5 py-3 text-sm font-bold hover:border-lime-300"
-                >
-                  {chatLoading ? "生成中..." : "DeepSeek 回答"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQuestion("");
-                    setSearchResult(null);
-                    setChatResult(null);
-                    setError("");
-                    setLatency(null);
-                  }}
-                  className="border border-white/30 px-5 py-3 text-sm font-bold"
-                >
-                  清空
-                </button>
-              </div>
-              {error ? <p className="mt-4 border border-red-400 bg-red-950 p-3 text-sm text-red-100">{error}</p> : null}
-            </section>
           </div>
 
           <div className="space-y-5">
             <section className="border border-zinc-950 bg-white p-5">
-              <h2 className="font-black">检索结果</h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                    Primary Output
+                  </p>
+                  <h2 className="mt-2 font-black">LLM 回答</h2>
+                </div>
+                {chatResult ? (
+                  <span
+                    className={`border px-3 py-1 text-xs font-black ${
+                      chatResult.mode === "langgraph_deepseek" || chatResult.mode === "langchain_deepseek"
+                        ? "border-lime-500 bg-lime-100 text-zinc-950"
+                        : "border-zinc-300 text-zinc-500"
+                    }`}
+                  >
+                    {modeLabel(chatResult.mode)}
+                  </span>
+                ) : null}
+              </div>
+
+              {chatResult ? (
+                <div className="mt-4 space-y-5">
+                  <p className="whitespace-pre-wrap border-l-4 border-blue-600 pl-4 leading-8 text-zinc-800">
+                    {chatResult.answer}
+                  </p>
+                  <div className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-3">
+                    <span>流程：{chatResult.workflow ?? "manual"}</span>
+                    <span>检索：{modeLabel(chatResult.retrieval_mode)}</span>
+                    <span>阈值：{chatResult.score_threshold?.toFixed(2) ?? scoreThreshold.toFixed(2)}</span>
+                  </div>
+                  {chatResult.graph_path?.length ? (
+                    <p className="border border-zinc-950/20 bg-[#f6f3ec] px-3 py-2 text-xs font-bold text-zinc-500">
+                      Graph Path：{chatResult.graph_path.join(" -> ")}
+                    </p>
+                  ) : null}
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Sources</p>
+                    <div className="mt-3 grid gap-3">
+                      {chatResult.sources.map((source, index) => (
+                        <article
+                          key={`${source.title}-${index}`}
+                          className="border border-zinc-950/20 bg-[#f6f3ec] p-4"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <h3 className="font-bold">
+                              [{index + 1}] {source.title}
+                            </h3>
+                            {typeof source.score === "number" ? (
+                              <span className="text-xs font-bold text-blue-700">
+                                {source.score.toFixed(3)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {pageLabel(source.page_start, source.page_end)}
+                            {source.section_path?.length ? ` / ${source.section_path.join(" / ")}` : ""}
+                          </p>
+                          <p className="mt-2 line-clamp-4 text-sm leading-6 text-zinc-600">
+                            {source.content}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 border border-dashed border-zinc-500 p-8 text-sm text-zinc-500">
+                  点击“生成回答”后，这里会展示基于知识库资料生成的回答和引用来源。
+                </div>
+              )}
+            </section>
+
+            <section className="border border-zinc-950 bg-white p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                    Evidence Debugger
+                  </p>
+                  <h2 className="mt-2 font-black">检索结果</h2>
+                </div>
+                {searchResult ? (
+                  <span className="border border-zinc-950 bg-[#f6f3ec] px-3 py-1 text-xs font-bold">
+                    {modeLabel(searchResult.mode)} / {searchResult.results.length}
+                  </span>
+                ) : null}
+              </div>
+
               {searchResult ? (
                 <div className="mt-4 space-y-3">
                   <p className="text-sm text-zinc-500">
-                    扫描 {searchResult.total_chunks} 个 chunks，返回 {searchResult.results.length} 个结果。
+                    扫描 {searchResult.total_chunks} 个 chunks，阈值 {searchResult.score_threshold.toFixed(2)}。
                   </p>
                   {searchResult.results.map((item, index) => (
                     <article key={item.chunk_id} className="border border-zinc-950 bg-[#f6f3ec] p-4">
@@ -460,57 +851,44 @@ export default function RagAgentDemoPage() {
                           </p>
                         </div>
                         <div className="h-2 w-28 border border-zinc-950 bg-white">
-                          <div className="h-full bg-blue-600" style={{ width: `${Math.min(100, Math.max(0, item.score * 100))}%` }} />
+                          <div
+                            className="h-full bg-blue-600"
+                            style={{ width: `${Math.min(100, Math.max(0, item.score * 100))}%` }}
+                          />
                         </div>
                       </div>
-                      <p className="mt-3 line-clamp-6 text-sm leading-6 text-zinc-700">{item.content}</p>
+                      <p className="mt-3 line-clamp-5 text-sm leading-6 text-zinc-700">
+                        {item.content}
+                      </p>
                     </article>
                   ))}
                 </div>
               ) : (
                 <div className="mt-4 border border-dashed border-zinc-500 p-8 text-sm text-zinc-500">
-                  输入问题后点击“检索 chunks”，这里会展示相似度排名。
+                  点击“只看检索”后，这里会展示相似度排名和命中文本。
                 </div>
               )}
             </section>
 
             <section className="border border-zinc-950 bg-white p-5">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-black">LLM 回答</h2>
-                {chatResult ? (
-                  <span className={`border px-3 py-1 text-xs font-black ${chatResult.mode === "deepseek" ? "border-lime-500 bg-lime-100 text-zinc-950" : "border-zinc-300 text-zinc-500"}`}>
-                    {chatResult.mode}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+                    Document Inspector
+                  </p>
+                  <h2 className="mt-2 font-black">文档详情</h2>
+                </div>
+                {documentDetail ? (
+                  <span className="border border-zinc-950 bg-[#f6f3ec] px-3 py-1 text-xs font-bold">
+                    {documentDetail.returned_chunk_count} chunks preview
                   </span>
                 ) : null}
               </div>
-              {chatResult ? (
-                <div className="mt-4 space-y-5">
-                  <p className="whitespace-pre-wrap border-l-4 border-blue-600 pl-4 leading-8 text-zinc-800">
-                    {chatResult.answer}
-                  </p>
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">Sources</p>
-                    <div className="mt-3 grid gap-3">
-                      {chatResult.sources.map((source, index) => (
-                        <article key={`${source.title}-${index}`} className="border border-zinc-950/20 bg-[#f6f3ec] p-4">
-                          <h3 className="font-bold">{source.title}</h3>
-                          <p className="mt-2 line-clamp-4 text-sm leading-6 text-zinc-600">{source.content}</p>
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="mt-4 border border-dashed border-zinc-500 p-8 text-sm text-zinc-500">
-                  点击“DeepSeek 回答”后，这里会展示基于检索结果生成的回答。
-                </div>
-              )}
-            </section>
 
-            <section className="border border-zinc-950 bg-white p-5">
-              <h2 className="font-black">文档详情</h2>
               {detailLoading ? (
-                <div className="mt-4 border border-dashed border-zinc-500 p-8 text-sm text-zinc-500">正在加载...</div>
+                <div className="mt-4 border border-dashed border-zinc-500 p-8 text-sm text-zinc-500">
+                  正在加载...
+                </div>
               ) : documentDetail ? (
                 <div className="mt-4 space-y-5">
                   <div className="grid gap-2 border border-zinc-950 bg-[#f6f3ec] p-4 text-sm text-zinc-600 md:grid-cols-2">
@@ -535,7 +913,9 @@ export default function RagAgentDemoPage() {
                           {pageLabel(chunk.page_start, chunk.page_end) ? ` / ${pageLabel(chunk.page_start, chunk.page_end)}` : ""}
                           {chunk.section_path?.length ? ` / ${chunk.section_path.join(" / ")}` : ""}
                         </p>
-                        <p className="mt-3 line-clamp-5 text-sm leading-6 text-zinc-700">{chunk.content}</p>
+                        <p className="mt-3 line-clamp-5 text-sm leading-6 text-zinc-700">
+                          {chunk.content}
+                        </p>
                         {chunk.overlap_previous || chunk.overlap_next ? (
                           <div className="mt-3 grid gap-2 border-t border-zinc-950/20 pt-3 text-xs leading-5 text-zinc-500">
                             {chunk.overlap_previous ? <p>上文 overlap：{chunk.overlap_previous}</p> : null}
