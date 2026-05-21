@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import ParticleField from "../../components/ParticleField";
 
 type Source = {
   title: string;
@@ -468,8 +469,13 @@ export default function RagAgentDemoPage() {
   const visibleDocuments = documents;
 
   return (
-    <main className="min-h-screen bg-[#f6f3ec] text-zinc-950">
-      <header className="sticky top-0 z-20 border-b border-zinc-950 bg-[#f6f3ec]/90 backdrop-blur">
+    <main className="lab-demo-theme min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
+      <ParticleField />
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-40 [background-image:linear-gradient(rgba(103,232,249,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.12)_1px,transparent_1px)] [background-size:56px_56px]" />
+      <div className="pointer-events-none fixed inset-0 z-0 [background-image:radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_78%_12%,rgba(163,230,53,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(5,7,11,0.92))]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 h-1 bg-cyan-300" />
+
+      <header className="sticky top-0 z-30 border-b border-cyan-300/20 bg-[#05070b]/86 backdrop-blur">
         <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
           <Link href="/" className="text-sm font-semibold uppercase tracking-[0.22em]">
             曾见云霞满天 AI Lab
@@ -484,7 +490,7 @@ export default function RagAgentDemoPage() {
         </nav>
       </header>
 
-      <section className="mx-auto max-w-7xl px-5 py-8">
+      <section className="relative z-10 mx-auto max-w-7xl px-5 py-8">
         <div className="grid gap-5 border-b border-zinc-950 pb-7 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">

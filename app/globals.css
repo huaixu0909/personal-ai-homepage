@@ -48,3 +48,98 @@ pre,
 .font-code {
   font-family: var(--font-code);
 }
+
+.lab-demo-theme {
+  color: #f4f4f5;
+}
+
+.lab-demo-theme .bg-white,
+.lab-demo-theme .bg-zinc-50,
+.lab-demo-theme .bg-\[\#f6f3ec\],
+.lab-demo-theme .bg-blue-50 {
+  background-color: rgba(8, 17, 27, 0.9) !important;
+}
+
+.lab-demo-theme .bg-zinc-950,
+.lab-demo-theme .bg-black,
+.lab-demo-theme pre {
+  background-color: rgba(2, 6, 12, 0.92) !important;
+}
+
+.lab-demo-theme section,
+.lab-demo-theme article,
+.lab-demo-theme .border,
+.lab-demo-theme .border-t,
+.lab-demo-theme .border-b,
+.lab-demo-theme .border-l,
+.lab-demo-theme .border-r {
+  border-color: rgba(103, 232, 249, 0.28) !important;
+}
+
+.lab-demo-theme section,
+.lab-demo-theme article {
+  box-shadow: 0 0 34px rgba(34, 211, 238, 0.08);
+}
+
+.lab-demo-theme .text-zinc-950,
+.lab-demo-theme .text-zinc-900,
+.lab-demo-theme .text-zinc-800 {
+  color: #f4f4f5 !important;
+}
+
+.lab-demo-theme .text-zinc-700,
+.lab-demo-theme .text-zinc-600 {
+  color: #d4d4d8 !important;
+}
+
+.lab-demo-theme .text-zinc-500,
+.lab-demo-theme .text-zinc-400 {
+  color: #a1a1aa !important;
+}
+
+.lab-demo-theme .text-blue-700,
+.lab-demo-theme .text-blue-600 {
+  color: #67e8f9 !important;
+}
+
+.lab-demo-theme .text-lime-600,
+.lab-demo-theme .text-emerald-700 {
+  color: #bef264 !important;
+}
+
+.lab-demo-theme .bg-blue-600 {
+  background-color: #22d3ee !important;
+}
+
+.lab-demo-theme .bg-lime-100,
+.lab-demo-theme .bg-emerald-50 {
+  background-color: rgba(190, 242, 100, 0.14) !important;
+}
+
+.lab-demo-theme input,
+.lab-demo-theme textarea {
+  background-color: rgba(2, 6, 12, 0.74) !important;
+  border-color: rgba(103, 232, 249, 0.34) !important;
+  color: #f4f4f5 !important;
+}
+
+.lab-demo-theme input:focus,
+.lab-demo-theme textarea:focus {
+  border-color: rgba(190, 242, 100, 0.86) !important;
+  outline: none;
+}
+
+.lab-demo-theme button,
+.lab-demo-theme a {
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease,
+    transform 160ms ease;
+}
+
+.lab-demo-theme button:hover,
+.lab-demo-theme a:hover {
+  border-color: rgba(190, 242, 100, 0.88) !important;
+}
+
+.lab-demo-theme .border-dashed {
+  border-color: rgba(103, 232, 249, 0.34) !important;
+}
