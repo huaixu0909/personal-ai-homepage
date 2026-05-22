@@ -21,9 +21,9 @@ const projects = [
     id: "02",
     name: "Multi-Agent Data Factory",
     cnName: "多 Agent 数据合成平台",
-    status: "v0.6 / Interview",
+    status: "v0.7 / Console",
     description:
-      "通过 DeepSeek 生成中文 Code Review、客服投诉、技术面试多 Agent 对话，并用质量评分器评估训练价值。",
+      "通过多场景控制台生成中文 Code Review、客服投诉、技术面试多 Agent 对话，并评估训练价值。",
     stack: ["FastAPI", "DeepSeek", "Scenario", "SQLite"],
     demoHref: "/demos/multi-agent-data-factory",
     detailHref: "/projects/multi-agent-data-factory",
