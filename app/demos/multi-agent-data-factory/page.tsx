@@ -5,10 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import ParticleField from "../../components/ParticleField";
 
 type ScenarioType = "code_review" | "customer_complaint" | "technical_interview";
+type ScenarioFilter = "current" | "all" | ScenarioType;
+type AcceptedFilter = "all" | "accepted" | "rejected";
 
 type Persona = {
+  persona_id?: string | null;
   agent_id: string;
   role: string;
+  name?: string | null;
   personality: string;
   style: string;
   focus: string;
@@ -55,6 +59,17 @@ type ConversationRecord = {
   scoring_model?: string | null;
   scoring_error?: string | null;
   score_feedback: string[];
+  workflow_engine: string;
+  workflow_steps: string[];
+  agent_trace: Array<{
+    node: string;
+    turn: number;
+    role: string;
+    agent_id: string;
+    persona_id?: string | null;
+    mode: string;
+    error?: string | null;
+  }>;
   created_at: string;
 };
 
@@ -70,6 +85,33 @@ type ScenarioDescriptor = {
 type ConversationListResponse = {
   items: ConversationRecord[];
   total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+};
+
+type PersonaRecord = {
+  persona_id: string;
+  scenario: string;
+  role: string;
+  name: string;
+  personality: string;
+  style: string;
+  focus: string;
+  goal: string;
+  tolerance: string;
+  usage_count: number;
+  average_score: number;
+  success_count: number;
+  weight: number;
+  memory_notes: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+type PersonaListResponse = {
+  items: PersonaRecord[];
+  total: number;
 };
 
 type Template = {
@@ -78,38 +120,39 @@ type Template = {
 };
 
 const apiBaseUrl = "http://localhost:8001";
+const pageSize = 10;
+
+const scenarioLabels: Record<ScenarioType, string> = {
+  code_review: "代码审查",
+  customer_complaint: "客服投诉",
+  technical_interview: "技术面试",
+};
+
+const scenarioNotes: Record<ScenarioType, string> = {
+  code_review: "输入一段代码 diff，生成开发者、审查者、挑战者和裁判之间的中文代码审查讨论。",
+  customer_complaint: "输入投诉背景、用户画像、情绪强度和企业政策，生成客服投诉处理训练对话。",
+  technical_interview: "输入岗位、主题、候选人背景和考察上下文，生成技术面试问答、追问和能力评估。",
+};
 
 const roleLabels: Record<string, string> = {
   Developer: "开发者",
   Reviewer: "审查者",
   Challenger: "挑战者",
   Judge: "裁判",
-  Customer: "用户",
+  Customer: "客户",
   SupportAgent: "客服专员",
-  ComplianceReviewer: "合规审核",
-  EscalationManager: "升级经理",
+  ComplianceReviewer: "合规审核员",
+  EscalationManager: "升级主管",
   Interviewer: "面试官",
   Candidate: "候选人",
   FollowupInterviewer: "追问面试官",
   Evaluator: "评估官",
 };
 
-const scenarioLabels: Record<ScenarioType, string> = {
-  code_review: "Code Review",
-  customer_complaint: "客服投诉",
-  technical_interview: "技术面试",
-};
-
-const scenarioNotes: Record<ScenarioType, string> = {
-  code_review: "输入一段代码 diff，生成开发者、审查者、挑战者和裁判之间的代码审查讨论。",
-  customer_complaint: "输入投诉背景、情绪强度和企业政策，生成客服投诉处理训练对话。",
-  technical_interview: "输入岗位、主题和候选人背景，生成技术面试问答、追问和能力评估。",
-};
-
 const endpoints: Record<ScenarioType, string> = {
-  code_review: "POST /api/simulations/code-review",
-  customer_complaint: "POST /api/simulations/customer-complaint",
-  technical_interview: "POST /api/simulations/technical-interview",
+  code_review: "/api/simulations/code-review",
+  customer_complaint: "/api/simulations/customer-complaint",
+  technical_interview: "/api/simulations/technical-interview",
 };
 
 const scoreLabels: Array<[keyof QualityScores, string]> = [
@@ -126,6 +169,11 @@ export default function MultiAgentDataFactoryDemoPage() {
   const [scenario, setScenario] = useState<ScenarioType>("code_review");
   const [scenarios, setScenarios] = useState<ScenarioDescriptor[]>([]);
   const [history, setHistory] = useState<ConversationRecord[]>([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotalPages, setHistoryTotalPages] = useState(1);
+  const [personas, setPersonas] = useState<PersonaRecord[]>([]);
+  const [personasLoading, setPersonasLoading] = useState(false);
 
   const [codeDiff, setCodeDiff] = useState(`+ query = f"SELECT * FROM users WHERE id = {user_id}"
 + cursor.execute(query)
@@ -142,7 +190,7 @@ export default function MultiAgentDataFactoryDemoPage() {
     "支持在符合规则时退款；涉及高额赔付时需要升级主管审核；客服必须避免承诺超出政策范围的补偿。",
   );
   const [complaintDetail, setComplaintDetail] = useState(
-    "我上周买的商品显示已经发货，但物流三天没有更新。联系客服一直让我等，今天又说可能丢件。我现在要求退款，并且希望你们给出明确处理时间。",
+    "我上周买的商品显示已经发货，但物流三天没有更新。联系客服一直让我等，今天又说可能丢件。我现在要求退款，并希望你们给出明确处理时间。",
   );
 
   const [targetRole, setTargetRole] = useState("AI 工程师");
@@ -155,6 +203,11 @@ export default function MultiAgentDataFactoryDemoPage() {
   const [interviewContext, setInterviewContext] = useState(
     "希望考察候选人是否真的理解 RAG 的检索、chunking、相似度阈值、上下文拼接和幻觉控制，而不是只会描述概念。",
   );
+
+  const [datasetScenario, setDatasetScenario] = useState<ScenarioFilter>("current");
+  const [acceptedFilter, setAcceptedFilter] = useState<AcceptedFilter>("all");
+  const [minScore, setMinScore] = useState("0");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [maxTurns, setMaxTurns] = useState(8);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
@@ -177,23 +230,32 @@ export default function MultiAgentDataFactoryDemoPage() {
         : candidateProfile.trim().length > 0 && interviewContext.trim().length > 0;
 
   const templates = buildTemplates();
+  const exportUrl = `${apiBaseUrl}/api/datasets/export.jsonl?${buildDatasetParams().toString()}`;
 
   useEffect(() => {
     const loadStatus = async () => {
       try {
-        const [healthResponse, scenariosResponse] = await Promise.all([
+        const [healthResponse, scenariosResponse, historyResponse, personasResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/health`),
           fetch(`${apiBaseUrl}/api/scenarios`),
+          fetch(`${apiBaseUrl}/api/conversations?scenario=code_review&page=1&page_size=${pageSize}`),
+          fetch(`${apiBaseUrl}/api/personas`),
         ]);
         setApiOnline(healthResponse.ok);
         if (scenariosResponse.ok) {
           const data = (await scenariosResponse.json()) as { items: ScenarioDescriptor[] };
           setScenarios(data.items);
         }
-        const historyResponse = await fetch(`${apiBaseUrl}/api/conversations?scenario=code_review`);
         if (historyResponse.ok) {
-          const historyData = (await historyResponse.json()) as ConversationListResponse;
-          setHistory(historyData.items.slice(0, 8));
+          const data = (await historyResponse.json()) as ConversationListResponse;
+          setHistory(data.items);
+          setHistoryTotal(data.total);
+          setHistoryPage(data.page);
+          setHistoryTotalPages(data.total_pages);
+        }
+        if (personasResponse.ok) {
+          const data = (await personasResponse.json()) as PersonaListResponse;
+          setPersonas(data.items);
         }
       } catch {
         setApiOnline(false);
@@ -201,20 +263,6 @@ export default function MultiAgentDataFactoryDemoPage() {
     };
     loadStatus();
   }, []);
-
-  async function loadHistory(nextScenario: ScenarioType) {
-    setHistoryLoading(true);
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/conversations?scenario=${nextScenario}`);
-      if (!response.ok) throw new Error("history failed");
-      const data = (await response.json()) as ConversationListResponse;
-      setHistory(data.items.slice(0, 8));
-    } catch {
-      setHistory([]);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }
 
   function buildTemplates(): Template[] {
     if (scenario === "code_review") {
@@ -263,9 +311,7 @@ export default function MultiAgentDataFactoryDemoPage() {
             setComplaintType("退款纠纷");
             setEmotionLevel("high");
             setCustomerProfile("老用户，最近一次订单体验很差");
-            setComplaintDetail(
-              "商品显示已发货，但物流三天没有更新。客服一直让我等，现在我要求退款并给出明确处理时间。",
-            );
+            setComplaintDetail("商品显示已发货，但物流三天没有更新。客服一直让我等，现在我要求退款并给出明确处理时间。");
           },
         },
         {
@@ -275,9 +321,7 @@ export default function MultiAgentDataFactoryDemoPage() {
             setComplaintType("物流延迟");
             setEmotionLevel("medium");
             setCustomerProfile("第一次下单的新用户，对时效很敏感");
-            setComplaintDetail(
-              "我订的是当天送达的生鲜，但现在已经超过承诺时间 6 小时。商品如果不新鲜了，责任怎么算？",
-            );
+            setComplaintDetail("我订的是当天送达的生鲜，但现在已经超过承诺时间 6 小时。商品如果不新鲜了，责任怎么算？");
           },
         },
         {
@@ -287,9 +331,7 @@ export default function MultiAgentDataFactoryDemoPage() {
             setComplaintType("隐私泄露疑虑");
             setEmotionLevel("extreme");
             setCustomerProfile("家长用户，对孩子信息非常敏感");
-            setComplaintDetail(
-              "客服刚才在群里提到了我的手机号尾号和孩子姓名，我担心个人信息被泄露，要求你们说明处理措施。",
-            );
+            setComplaintDetail("客服刚才在群里提到了我的手机号尾号和孩子姓名，我担心个人信息被泄露，要求说明处理措施。");
           },
         },
       ];
@@ -303,12 +345,8 @@ export default function MultiAgentDataFactoryDemoPage() {
           setCandidateLevel("中级");
           setInterviewTopic("RAG");
           setInterviewDifficulty("medium");
-          setCandidateProfile(
-            "候选人有 Python、FastAPI 和本地 RAG Demo 经验，了解向量检索和 DeepSeek API，但生产级监控、评估和故障恢复经验较少。",
-          );
-          setInterviewContext(
-            "希望考察候选人是否真的理解 RAG 的检索、chunking、相似度阈值、上下文拼接和幻觉控制。",
-          );
+          setCandidateProfile("候选人有 Python、FastAPI 和本地 RAG Demo 经验，了解向量检索和 DeepSeek API，但生产级经验较少。");
+          setInterviewContext("重点考察检索、chunking、相似度阈值、上下文拼接和幻觉控制。");
         },
       },
       {
@@ -336,20 +374,68 @@ export default function MultiAgentDataFactoryDemoPage() {
     ];
   }
 
+  function buildDatasetParams(targetPage = historyPage) {
+    const params = new URLSearchParams();
+    const scenarioValue = datasetScenario === "current" ? scenario : datasetScenario;
+    if (scenarioValue !== "all") params.set("scenario", scenarioValue);
+    if (acceptedFilter !== "all") params.set("accepted", acceptedFilter === "accepted" ? "true" : "false");
+    if (Number(minScore) > 0) params.set("min_score", minScore);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    params.set("page", String(targetPage));
+    params.set("page_size", String(pageSize));
+    return params;
+  }
+
+  async function loadHistory(targetPage = 1) {
+    setHistoryLoading(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/conversations?${buildDatasetParams(targetPage).toString()}`);
+      if (!response.ok) throw new Error("history failed");
+      const data = (await response.json()) as ConversationListResponse;
+      setHistory(data.items);
+      setHistoryTotal(data.total);
+      setHistoryPage(data.page);
+      setHistoryTotalPages(data.total_pages);
+      setApiOnline(true);
+    } catch {
+      setHistory([]);
+      setHistoryTotal(0);
+      setHistoryPage(1);
+      setHistoryTotalPages(1);
+      setApiOnline(false);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  async function loadPersonas() {
+    setPersonasLoading(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/personas`);
+      if (!response.ok) throw new Error("personas failed");
+      const data = (await response.json()) as PersonaListResponse;
+      setPersonas(data.items);
+      setApiOnline(true);
+    } catch {
+      setApiOnline(false);
+    } finally {
+      setPersonasLoading(false);
+    }
+  }
+
   async function runSimulation() {
     setLoading(true);
     setError("");
     setCopied("");
     setConversation(null);
 
-    const endpoint = endpoints[scenario].replace("POST ", "");
     const payload =
       scenario === "code_review"
         ? {
             language,
             code_diff: codeDiff,
             review_focus: reviewFocus
-              .split(/[,，]/)
+              .split(/[,，\s]+/)
               .map((item) => item.trim())
               .filter(Boolean),
             max_turns: maxTurns,
@@ -375,7 +461,7 @@ export default function MultiAgentDataFactoryDemoPage() {
             };
 
     try {
-      const response = await fetch(`${apiBaseUrl}${endpoint}`, {
+      const response = await fetch(`${apiBaseUrl}${endpoints[scenario]}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -385,7 +471,8 @@ export default function MultiAgentDataFactoryDemoPage() {
       const data = (await response.json()) as ConversationRecord;
       setConversation(data);
       setApiOnline(true);
-      await loadHistory(scenario);
+      await loadHistory(1);
+      await loadPersonas();
     } catch (simulationError) {
       setApiOnline(false);
       setError(
@@ -437,7 +524,7 @@ export default function MultiAgentDataFactoryDemoPage() {
               多场景数据生产控制台
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-300">
-              选择业务场景、套用模板、生成中文多 Agent 对话，并在同一工作台查看历史记录、评分和可导出的 JSONL 数据。
+              选择业务场景、套用模板、生成中文多 Agent 对话，并在同一工作台筛选、搜索、翻页和导出可沉淀的 JSONL 数据。
             </p>
           </div>
           <div className="rounded-2xl border border-cyan-300/25 bg-white/10 px-4 py-3 text-sm backdrop-blur">
@@ -451,8 +538,8 @@ export default function MultiAgentDataFactoryDemoPage() {
             </span>
             {conversation ? (
               <div className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-400">
-                {conversation.generation_mode === "llm" ? "LLM" : "MOCK"}{" "}
-                {conversation.llm_provider ? `/ ${conversation.llm_provider}` : ""}
+                {formatGenerationMode(conversation.generation_mode)}
+                {conversation.llm_provider ? ` / ${conversation.llm_provider}` : ""}
                 {conversation.llm_model ? ` / ${conversation.llm_model}` : ""}
                 <br />
                 SCORE / {conversation.scoring_mode === "llm_judge" ? "LLM JUDGE" : "HEURISTIC"}
@@ -461,68 +548,58 @@ export default function MultiAgentDataFactoryDemoPage() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="mt-6 grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
           <section className="rounded-3xl border border-cyan-300/25 bg-white/[0.08] p-5 backdrop-blur">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
                   Generator
                 </p>
-                <h2 className="mt-2 font-black text-white">{scenarioLabels[scenario]} 任务</h2>
+                <h2 className="mt-2 font-black text-white">{scenarioLabels[scenario]}任务</h2>
                 <p className="mt-2 max-w-xl text-xs leading-5 text-zinc-400">
                   {activeDescriptor?.description ?? scenarioNotes[scenario]}
                 </p>
               </div>
               <a
-                href={`${apiBaseUrl}/api/datasets/export.jsonl`}
+                href={exportUrl}
                 target="_blank"
                 className="rounded-full border border-lime-300/50 px-3 py-1.5 text-xs font-black text-lime-200"
               >
-                导出 JSONL
+                导出当前筛选
               </a>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              {(Object.keys(scenarioLabels) as ScenarioType[]).map((value) => (
+              {(Object.keys(scenarioLabels) as ScenarioType[]).map((item) => (
                 <button
-                  key={value}
+                  key={item}
                   type="button"
-                  onClick={() => {
-                    setScenario(value);
-                    setConversation(null);
-                    setError("");
-                    setCopied("");
-                    loadHistory(value);
-                  }}
-                  className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
-                    scenario === value
-                      ? "border-lime-300 bg-lime-300 text-zinc-950"
-                      : "border-white/15 bg-black/30 text-zinc-300 hover:border-cyan-300/50"
+                  onClick={() => setScenario(item)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    scenario === item
+                      ? "border-cyan-300 bg-cyan-300/15 text-cyan-100"
+                      : "border-white/10 bg-black/25 text-zinc-300 hover:border-cyan-300/40"
                   }`}
                 >
-                  {scenarioLabels[value]}
+                  <span className="text-sm font-black">{scenarioLabels[item]}</span>
+                  <span className="mt-2 block text-xs leading-5 text-zinc-500">{scenarioNotes[item]}</span>
                 </button>
               ))}
             </div>
 
             <ScenarioInfo descriptor={activeDescriptor} scenario={scenario} />
 
-            <div className="mt-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
-                输入模板
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {templates.map((template) => (
-                  <button
-                    key={template.label}
-                    type="button"
-                    onClick={template.apply}
-                    className="rounded-full border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-bold text-zinc-300 hover:border-cyan-300/50"
-                  >
-                    {template.label}
-                  </button>
-                ))}
-              </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {templates.map((template) => (
+                <button
+                  key={template.label}
+                  type="button"
+                  onClick={template.apply}
+                  className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-bold text-zinc-200 hover:border-lime-300/50"
+                >
+                  {template.label}
+                </button>
+              ))}
             </div>
 
             {scenario === "code_review" ? (
@@ -604,16 +681,36 @@ export default function MultiAgentDataFactoryDemoPage() {
               </p>
             ) : null}
 
-            <HistoryPanel
+            <DatasetPanel
               history={history}
               loading={historyLoading}
+              total={historyTotal}
+              page={historyPage}
+              totalPages={historyTotalPages}
+              datasetScenario={datasetScenario}
+              setDatasetScenario={setDatasetScenario}
+              acceptedFilter={acceptedFilter}
+              setAcceptedFilter={setAcceptedFilter}
+              minScore={minScore}
+              setMinScore={setMinScore}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSearch={() => loadHistory(1)}
+              onPageChange={loadHistory}
               onSelect={(item) => setConversation(item)}
+              exportUrl={exportUrl}
+            />
+            <PersonaPoolPanel
+              personas={personas}
+              loading={personasLoading}
+              activeScenario={scenario}
+              onRefresh={loadPersonas}
             />
           </section>
 
           <div className="space-y-5">
-            <QualityPanel conversation={conversation} />
             <ConversationPanel conversation={conversation} />
+            <QualityPanel conversation={conversation} />
           </div>
         </div>
       </section>
@@ -636,6 +733,24 @@ function formatTime(value: string) {
   });
 }
 
+function formatGenerationMode(mode: string) {
+  if (mode === "langgraph_agent_llm") return "Agent Nodes LLM";
+  if (mode === "langgraph_agent_mixed") return "Agent Nodes Mixed";
+  if (mode === "langgraph_agent_mock") return "Agent Nodes Mock";
+  if (mode === "langgraph_llm") return "LangGraph LLM";
+  if (mode === "langgraph_mock") return "LangGraph Mock";
+  if (mode === "llm") return "真实 LLM";
+  if (mode === "mock") return "本地 Mock";
+  return mode;
+}
+
+function formatWorkflowEngine(engine: string) {
+  if (engine === "langgraph_agent_nodes") return "Agent Nodes";
+  if (engine === "langgraph") return "LangGraph";
+  if (engine === "legacy") return "Legacy";
+  return engine;
+}
+
 function inputClassName() {
   return "mt-2 w-full rounded-xl border border-white/15 bg-black/50 p-3 text-sm text-white outline-none focus:border-cyan-300";
 }
@@ -656,7 +771,7 @@ function ScenarioInfo({
     <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-xs leading-6 text-zinc-400">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="font-bold text-zinc-200">{descriptor?.status ?? "本地场景"}</p>
-        <p className="font-code text-cyan-200">{endpoints[scenario]}</p>
+        <p className="font-code text-cyan-200">POST {endpoints[scenario]}</p>
       </div>
       <p className="mt-2">{scenarioNotes[scenario]}</p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -884,23 +999,120 @@ function TechnicalInterviewForm({
   );
 }
 
-function HistoryPanel({
+function DatasetPanel({
   history,
   loading,
+  total,
+  page,
+  totalPages,
+  datasetScenario,
+  setDatasetScenario,
+  acceptedFilter,
+  setAcceptedFilter,
+  minScore,
+  setMinScore,
+  searchQuery,
+  setSearchQuery,
+  onSearch,
+  onPageChange,
   onSelect,
+  exportUrl,
 }: {
   history: ConversationRecord[];
   loading: boolean;
+  total: number;
+  page: number;
+  totalPages: number;
+  datasetScenario: ScenarioFilter;
+  setDatasetScenario: (value: ScenarioFilter) => void;
+  acceptedFilter: AcceptedFilter;
+  setAcceptedFilter: (value: AcceptedFilter) => void;
+  minScore: string;
+  setMinScore: (value: string) => void;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+  onSearch: () => void;
+  onPageChange: (page: number) => void;
   onSelect: (item: ConversationRecord) => void;
+  exportUrl: string;
 }) {
   return (
     <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">
-          最近生成记录
-        </p>
-        <span className="text-xs text-zinc-500">{loading ? "加载中" : `${history.length} 条`}</span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">Dataset Manager</p>
+          <h3 className="mt-1 font-black text-white">数据筛选、搜索与导出</h3>
+        </div>
+        <a
+          href={exportUrl}
+          target="_blank"
+          className="rounded-full border border-lime-300/50 px-3 py-1.5 text-xs font-black text-lime-200"
+        >
+          导出 JSONL
+        </a>
       </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          场景
+          <select
+            value={datasetScenario}
+            onChange={(event) => setDatasetScenario(event.target.value as ScenarioFilter)}
+            className={inputClassName()}
+          >
+            <option value="current">当前场景</option>
+            <option value="all">全部场景</option>
+            <option value="code_review">代码审查</option>
+            <option value="customer_complaint">客服投诉</option>
+            <option value="technical_interview">技术面试</option>
+          </select>
+        </label>
+        <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          结果
+          <select
+            value={acceptedFilter}
+            onChange={(event) => setAcceptedFilter(event.target.value as AcceptedFilter)}
+            className={inputClassName()}
+          >
+            <option value="all">全部</option>
+            <option value="accepted">已通过</option>
+            <option value="rejected">未通过</option>
+          </select>
+        </label>
+        <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          最低分
+          <select value={minScore} onChange={(event) => setMinScore(event.target.value)} className={inputClassName()}>
+            <option value="0">不限</option>
+            <option value="6">6+</option>
+            <option value="7">7+</option>
+            <option value="8">8+</option>
+            <option value="9">9+</option>
+          </select>
+        </label>
+        <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          搜索
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="关键词 / Agent / 任务"
+            className={inputClassName()}
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={onSearch}
+          className="rounded-full bg-cyan-300 px-4 py-2 text-xs font-black text-zinc-950"
+        >
+          应用筛选
+        </button>
+        <span className="text-xs font-bold text-zinc-500">
+          {loading ? "加载中..." : `共 ${total} 条 / 第 ${page} 页 / ${totalPages} 页`}
+        </span>
+      </div>
+
       {history.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {history.map((item) => (
@@ -910,26 +1122,163 @@ function HistoryPanel({
               onClick={() => onSelect(item)}
               className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left transition hover:border-cyan-300/40"
             >
-              <div className="flex items-center justify-between gap-3 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                 <span className="font-bold text-zinc-200">{item.conversation_id}</span>
                 <span className={item.accepted ? "text-lime-300" : "text-amber-300"}>
-                  {item.scores.final_score.toFixed(2)}
+                  {item.accepted ? "通过" : "待筛"} / {item.scores.final_score.toFixed(2)}
                 </span>
               </div>
               <div className="mt-1 flex flex-wrap gap-2 text-xs text-zinc-500">
                 <span>{scenarioLabels[item.scenario as ScenarioType] ?? item.scenario}</span>
                 <span>{formatTime(item.created_at)}</span>
-                <span>{item.generation_mode === "llm" ? "真实 LLM" : "本地 Mock"}</span>
+                <span>{formatGenerationMode(item.generation_mode)}</span>
+                <span>{formatWorkflowEngine(item.workflow_engine)}</span>
+                <span>{item.scoring_mode === "llm_judge" ? "LLM 评分" : "规则评分"}</span>
               </div>
             </button>
           ))}
         </div>
       ) : (
         <p className="mt-3 rounded-2xl border border-dashed border-white/15 p-4 text-xs text-zinc-500">
-          当前场景还没有历史记录。
+          当前筛选条件下暂无数据。
+        </p>
+      )}
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.max(1, page - 1))}
+          disabled={page <= 1 || loading}
+          className="rounded-full border border-white/15 px-4 py-2 text-xs font-black text-zinc-200 disabled:cursor-not-allowed disabled:text-zinc-600"
+        >
+          上一页
+        </button>
+        <button
+          type="button"
+          onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+          disabled={page >= totalPages || loading}
+          className="rounded-full border border-white/15 px-4 py-2 text-xs font-black text-zinc-200 disabled:cursor-not-allowed disabled:text-zinc-600"
+        >
+          下一页
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PersonaPoolPanel({
+  personas,
+  loading,
+  activeScenario,
+  onRefresh,
+}: {
+  personas: PersonaRecord[];
+  loading: boolean;
+  activeScenario: ScenarioType;
+  onRefresh: () => void;
+}) {
+  const activePersonas = personas.filter((persona) => persona.scenario === activeScenario);
+  const visiblePersonas = activePersonas.length > 0 ? activePersonas : personas.slice(0, 8);
+
+  return (
+    <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">Persona Memory</p>
+          <h3 className="mt-1 font-black text-white">Agent Persona 池</h3>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">
+            当前场景会优先选择权重和历史表现更高的 Persona；生成完成后自动更新使用次数、均分、权重和记忆。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="rounded-full border border-cyan-300/40 px-3 py-1.5 text-xs font-black text-cyan-100"
+        >
+          {loading ? "刷新中..." : "刷新"}
+        </button>
+      </div>
+
+      {visiblePersonas.length > 0 ? (
+        <div className="mt-4 grid gap-3">
+          {visiblePersonas.map((persona) => (
+            <article key={persona.persona_id} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-zinc-100">
+                    {persona.name} / {translateRole(persona.role)}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {scenarioLabels[persona.scenario as ScenarioType] ?? persona.scenario}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs font-black">
+                  <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-cyan-100">
+                    {persona.usage_count} 次
+                  </span>
+                  <span className="rounded-full bg-lime-300/10 px-2 py-1 text-lime-100">
+                    均分 {persona.average_score.toFixed(2)}
+                  </span>
+                  <span className="rounded-full bg-white/10 px-2 py-1 text-zinc-200">
+                    权重 {persona.weight.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 text-xs leading-5 text-zinc-400 sm:grid-cols-2">
+                <p>性格：{persona.personality}</p>
+                <p>关注：{persona.focus}</p>
+              </div>
+              <p className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3 text-xs leading-5 text-zinc-400">
+                {persona.memory_notes[0] ?? "等待真实生成结果积累记忆。"}
+              </p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-2xl border border-dashed border-white/15 p-4 text-xs text-zinc-500">
+          后端启动后会自动初始化默认 Persona 池。
         </p>
       )}
     </div>
+  );
+}
+
+function ConversationPanel({ conversation }: { conversation: ConversationRecord | null }) {
+  return (
+    <section className="rounded-3xl border border-cyan-300/25 bg-white/[0.08] p-5 backdrop-blur">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Agent Conversation</p>
+      <h2 className="mt-2 font-black text-white">模拟对话</h2>
+
+      {conversation ? (
+        <div className="mt-4 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {conversation.agents.map((agent) => (
+              <span
+                key={agent.agent_id}
+                className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100"
+              >
+                {translateRole(agent.role)} / {agent.name ?? agent.personality}
+              </span>
+            ))}
+          </div>
+          {conversation.messages.map((message) => (
+            <article key={`${conversation.conversation_id}-${message.turn}`} className="rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-bold text-white">
+                  {String(message.turn).padStart(2, "0")} / {translateRole(message.role)}
+                </h3>
+                <span className="text-xs font-bold text-zinc-500">{message.agent_id}</span>
+              </div>
+              <p className="mt-2 text-sm leading-7 text-zinc-300">{message.content}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-2xl border border-dashed border-white/20 p-8 text-sm text-zinc-400">
+          暂无模拟结果。选择场景并输入素材后点击生成。
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -938,9 +1287,7 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
     <section className="rounded-3xl border border-cyan-300/25 bg-white/[0.08] p-5 backdrop-blur">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-            Quality Scorer
-          </p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">Quality Scorer</p>
           <h2 className="mt-2 font-black text-white">数据质量评分</h2>
         </div>
         {conversation ? (
@@ -958,10 +1305,25 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
           />
           <MetaPanel
             title="生成模式"
-            value={`${conversation.generation_mode === "llm" ? "真实 LLM" : "本地 Mock"}${
+            value={`${formatGenerationMode(conversation.generation_mode)}${
               conversation.llm_provider ? ` / ${conversation.llm_provider}` : ""
             }${conversation.llm_model ? ` / ${conversation.llm_model}` : ""}`}
             warning={conversation.llm_error ? `LLM 回退原因：${conversation.llm_error}` : ""}
+          />
+          <MetaPanel
+            title="工作流"
+            value={`${formatWorkflowEngine(conversation.workflow_engine)} / ${conversation.agent_trace.length} Agent Turns`}
+            feedback={conversation.workflow_steps.map((step, index) => `${index + 1}. ${step}`)}
+          />
+          <MetaPanel
+            title="Agent 执行轨迹"
+            value={`${conversation.agent_trace.filter((item) => item.mode === "llm").length} LLM / ${
+              conversation.agent_trace.filter((item) => item.mode === "mock").length
+            } Mock`}
+            feedback={conversation.agent_trace.map(
+              (item) =>
+                `${item.turn}. ${translateRole(item.role)} / ${item.node} / ${item.mode.toUpperCase()}`,
+            )}
           />
           <MetaPanel
             title="评分模式"
@@ -989,47 +1351,6 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-white/20 p-8 text-sm text-zinc-400">
           生成后这里会展示评分模式、中文质量评语和各维度分数。
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ConversationPanel({ conversation }: { conversation: ConversationRecord | null }) {
-  return (
-    <section className="rounded-3xl border border-cyan-300/25 bg-white/[0.08] p-5 backdrop-blur">
-      <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-        Agent Conversation
-      </p>
-      <h2 className="mt-2 font-black text-white">模拟对话</h2>
-
-      {conversation ? (
-        <div className="mt-4 space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {conversation.agents.map((agent) => (
-              <span
-                key={agent.agent_id}
-                className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100"
-              >
-                {translateRole(agent.role)} / {agent.personality}
-              </span>
-            ))}
-          </div>
-          {conversation.messages.map((message) => (
-            <article key={message.turn} className="rounded-2xl border border-white/10 bg-black/25 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="font-bold text-white">
-                  {String(message.turn).padStart(2, "0")} / {translateRole(message.role)}
-                </h3>
-                <span className="text-xs font-bold text-zinc-500">{message.agent_id}</span>
-              </div>
-              <p className="mt-2 text-sm leading-7 text-zinc-300">{message.content}</p>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="mt-4 rounded-2xl border border-dashed border-white/20 p-8 text-sm text-zinc-400">
-          暂无模拟结果。选择场景并输入素材后点击生成。
         </div>
       )}
     </section>

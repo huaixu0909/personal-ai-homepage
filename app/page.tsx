@@ -8,10 +8,10 @@ const projects = [
     id: "01",
     name: "RAG Agent System",
     cnName: "企业知识库 RAG Agent",
-    status: "v0.8 / DeepSeek",
+    status: "v1.8 / Knowledge Overview",
     description:
-      "支持文档上传、结构增强 chunking、相似度检索和 DeepSeek RAG 问答的本地知识库系统。",
-    stack: ["FastAPI", "RAG", "DeepSeek", "Next.js"],
+      "支持文档上传、chunking、向量检索、知识库概览问答和 DeepSeek RAG 回答的本地知识库系统。",
+    stack: ["FastAPI", "RAG", "Chroma", "LangGraph"],
     demoHref: "/demos/rag-agent",
     detailHref: "/projects/rag-agent",
     githubHref: `${githubUrl}/rag-agent-system`,
@@ -21,9 +21,9 @@ const projects = [
     id: "02",
     name: "Multi-Agent Data Factory",
     cnName: "多 Agent 数据合成平台",
-    status: "v0.7 / Console",
+    status: "v1.1 / Agent Nodes",
     description:
-      "通过多场景控制台生成中文 Code Review、客服投诉、技术面试多 Agent 对话，并评估训练价值。",
+      "通过独立 Agent 节点逐轮生成中文对话，并支持数据搜索、筛选、分页、JSONL 导出和 Persona 记忆演化。",
     stack: ["FastAPI", "DeepSeek", "Scenario", "SQLite"],
     demoHref: "/demos/multi-agent-data-factory",
     detailHref: "/projects/multi-agent-data-factory",
@@ -88,8 +88,7 @@ export default function Home() {
           </h1>
 
           <p className="mt-8 max-w-2xl border-l border-cyan-300/50 pl-5 text-base leading-8 text-zinc-300 sm:text-lg">
-            一个面向 LLM、RAG、Agent 和 AI 工程化的可运行作品空间。这里不只展示项目，也展示接口、
-            本地服务、检索链路和可以被追问的系统细节。
+            一个面向 LLM、RAG、Agent 和 AI 工程化的可运行作品空间。这里不只展示项目，也展示接口、本地服务、检索链路和可以被追问的系统细节。
           </p>
 
           <div className="mt-9 flex flex-wrap gap-3">
@@ -124,42 +123,35 @@ export default function Home() {
           <div className="border border-cyan-300/40 bg-[#08111b]/88 p-5 shadow-[0_0_50px_rgba(34,211,238,0.12)]">
             <div className="flex items-start justify-between gap-6">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-300">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-lime-300">
                   Local Lab Status
                 </p>
-                <h2 className="font-display mt-4 text-3xl font-black text-white">
-                  三服务联调工作台
-                </h2>
+                <h2 className="mt-4 text-3xl font-black text-white">三服务联调工作台</h2>
               </div>
-              <span className="border border-lime-300 bg-lime-300/10 px-3 py-1 text-xs font-black text-lime-200">
+              <span className="rounded-full border border-lime-300 px-3 py-1 text-xs font-bold text-lime-300">
                 LIVE
               </span>
             </div>
 
-            <div className="mt-8 grid gap-0 border border-white/10">
-              {labSignals.map(([name, host, status]) => (
-                <div
-                  key={name}
-                  className="grid grid-cols-[1fr_auto] gap-4 border-b border-white/10 p-4 last:border-b-0"
-                >
+            <div className="mt-8 border border-cyan-300/20">
+              {labSignals.map(([name, url, tag]) => (
+                <div key={name} className="flex items-center justify-between border-b border-cyan-300/10 p-4 last:border-b-0">
                   <div>
-                    <p className="font-semibold text-zinc-100">{name}</p>
-                    <p className="mt-1 text-sm text-zinc-500">{host}</p>
+                    <p className="font-bold text-zinc-100">{name}</p>
+                    <p className="mt-1 text-sm text-zinc-500">{url}</p>
                   </div>
-                  <span className="self-start bg-cyan-300 px-2 py-1 text-xs font-black text-zinc-950">
-                    {status}
+                  <span className="rounded-full bg-cyan-300 px-3 py-1 text-xs font-black text-zinc-950">
+                    {tag}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="mt-5 grid grid-cols-3 border border-white/10">
+            <div className="mt-5 grid grid-cols-3 border border-cyan-300/15">
               {["RAG", "AGENT", "LLM"].map((item) => (
-                <div key={item} className="border-r border-white/10 p-4 last:border-r-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                    Focus
-                  </p>
-                  <p className="mt-3 text-2xl font-black text-white">{item}</p>
+                <div key={item} className="border-r border-cyan-300/15 p-4 last:border-r-0">
+                  <p className="text-xs uppercase tracking-[0.22em] text-zinc-500">Focus</p>
+                  <p className="mt-6 text-2xl font-black text-white">{item}</p>
                 </div>
               ))}
             </div>
@@ -167,17 +159,19 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="projects" className="relative z-10 border-y border-cyan-300/20 bg-[#08111b]/90">
+      <section id="projects" className="relative z-10 border-y border-cyan-300/20 bg-[#071017]/80">
         <div className="mx-auto max-w-7xl px-5 py-16">
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-lime-300">
-                Selected Systems
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-lime-300">
+                Projects
               </p>
-              <h2 className="font-display mt-4 text-4xl font-black text-white">核心项目</h2>
+              <h2 className="font-display mt-3 text-3xl font-black text-white sm:text-5xl">
+                可运行的 AI 工程样本
+              </h2>
             </div>
-            <p className="max-w-md text-sm leading-6 text-zinc-400">
-              项目卡片采用未来控制台式结构：编号、状态、技术栈、演示入口和仓库入口在同一层级展开。
+            <p className="max-w-xl text-sm leading-7 text-zinc-400">
+              每个项目都尽量保留真实工程形态：后端接口、前端 Demo、本地数据、模型调用和可以逐步演进的技术路线。
             </p>
           </div>
 
@@ -185,45 +179,49 @@ export default function Home() {
             {projects.map((project) => (
               <article
                 key={project.id}
-                className="group border border-cyan-300/25 bg-black/35 p-5 transition hover:-translate-y-1 hover:border-cyan-300 hover:bg-[#0b1824]"
+                className="group border border-cyan-300/20 bg-black/28 p-6 transition hover:border-cyan-300/55 hover:bg-cyan-300/[0.05]"
               >
-                <div className="flex items-start justify-between gap-5 border-b border-cyan-300/20 pb-5">
+                <div className="flex items-start justify-between gap-6">
                   <div>
-                    <p className="text-sm font-black text-cyan-200">{project.id}</p>
-                    <h3 className="font-display mt-4 text-3xl font-black text-white">
-                      {project.name}
-                    </h3>
-                    <p className="mt-1 text-sm font-semibold text-zinc-400">{project.cnName}</p>
+                    <p className="text-sm font-black text-zinc-500">{project.id}</p>
+                    <h3 className="mt-4 font-display text-2xl font-black text-white">{project.name}</h3>
+                    <p className="mt-1 text-lg font-bold text-cyan-100">{project.cnName}</p>
                   </div>
-                  <span className="border border-cyan-300/40 bg-cyan-300/10 px-3 py-1 text-xs font-bold text-cyan-100">
+                  <span className={`${project.accent} px-3 py-1 text-xs font-black text-zinc-950`}>
                     {project.status}
                   </span>
                 </div>
 
-                <p className="mt-5 min-h-20 text-sm leading-7 text-zinc-300">{project.description}</p>
+                <p className="mt-5 min-h-20 text-sm leading-7 text-zinc-400">{project.description}</p>
 
-                <div className="mt-6 flex flex-wrap gap-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                   {project.stack.map((item) => (
-                    <span
-                      key={item}
-                      className="border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-zinc-300"
-                    >
+                    <span key={item} className="border border-white/15 px-3 py-1 text-xs font-semibold text-zinc-300">
                       {item}
                     </span>
                   ))}
                 </div>
 
-                <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-cyan-300/20 pt-5 text-sm font-semibold">
-                  <Link href={project.demoHref} className="text-cyan-200 hover:text-white">
-                    Demo
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Link
+                    href={project.demoHref}
+                    className="bg-cyan-300 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-white"
+                  >
+                    本地 Demo
                   </Link>
-                  <Link href={project.detailHref} className="text-cyan-200 hover:text-white">
-                    Detail
+                  <Link
+                    href={project.detailHref}
+                    className="border border-zinc-600 px-4 py-2 text-sm font-semibold text-zinc-100 transition hover:border-lime-300 hover:text-lime-200"
+                  >
+                    项目详情
                   </Link>
-                  <a href={project.githubHref} target="_blank" className="text-cyan-200 hover:text-white">
+                  <a
+                    href={project.githubHref}
+                    target="_blank"
+                    className="border border-zinc-700 px-4 py-2 text-sm font-semibold text-zinc-400 transition hover:border-zinc-300 hover:text-white"
+                  >
                     GitHub
                   </a>
-                  <span className={`ml-auto h-3 w-12 ${project.accent} shadow-[0_0_18px_currentColor]`} />
                 </div>
               </article>
             ))}
@@ -231,25 +229,17 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="about" className="relative z-10 mx-auto grid max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[0.7fr_1.3fr]">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">About</p>
-          <h2 className="font-display mt-4 text-4xl font-black text-white">关于这个实验室</h2>
-        </div>
-        <div className="border-l border-cyan-300/30 pl-6">
-          <p className="max-w-3xl text-lg leading-9 text-zinc-300">
-            这里聚焦大模型应用开发、Agent 工作流、知识库问答和 AI Coding。目标是把作品集做成能打开、
-            能测试、能追问的工程现场，让每一个项目都尽可能接近真实产品链路。
+      <section id="about" className="relative z-10 mx-auto max-w-7xl px-5 py-16">
+        <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">About</p>
+            <h2 className="font-display mt-3 text-3xl font-black text-white">从 Demo 到工程闭环</h2>
+          </div>
+          <p className="text-base leading-8 text-zinc-400">
+            这个站点会随着项目一起演进：RAG 项目负责知识库问答与检索质量，Multi-Agent Data Factory 负责数据合成与质量评估。目标不是堆砌概念，而是把每一步能力做成可以运行、可以联调、可以复盘的工程切片。
           </p>
         </div>
       </section>
-
-      <footer className="relative z-10 border-t border-cyan-300/20 bg-black text-zinc-400">
-        <div className="mx-auto flex max-w-7xl justify-between px-5 py-6 text-xs font-semibold uppercase tracking-[0.18em]">
-          <span>曾见云霞满天 AI Lab</span>
-          <span>Updated 2026</span>
-        </div>
-      </footer>
     </main>
   );
 }
