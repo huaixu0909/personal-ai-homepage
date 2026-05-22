@@ -37,6 +37,7 @@ type QualityScores = {
 type ConversationRecord = {
   conversation_id: string;
   task_type: "code_review";
+  scenario: string;
   language: string;
   code_diff: string;
   review_focus: string[];
@@ -44,6 +45,15 @@ type ConversationRecord = {
   messages: Message[];
   scores: QualityScores;
   accepted: boolean;
+  generation_mode: string;
+  llm_provider?: string | null;
+  llm_model?: string | null;
+  llm_error?: string | null;
+  scoring_mode: string;
+  scoring_provider?: string | null;
+  scoring_model?: string | null;
+  scoring_error?: string | null;
+  score_feedback: string[];
   created_at: string;
 };
 
@@ -55,13 +65,13 @@ const sampleDiff = `+ query = f"SELECT * FROM users WHERE id = {user_id}"
 + return {"user": user}`;
 
 const scoreLabels: Array<[keyof QualityScores, string]> = [
-  ["realism", "Realism"],
-  ["difficulty", "Difficulty"],
-  ["diversity", "Diversity"],
-  ["consistency", "Consistency"],
-  ["conflict", "Conflict"],
-  ["training_value", "Training Value"],
-  ["safety", "Safety"],
+  ["realism", "真实感"],
+  ["difficulty", "难度"],
+  ["diversity", "多样性"],
+  ["consistency", "一致性"],
+  ["conflict", "冲突强度"],
+  ["training_value", "训练价值"],
+  ["safety", "安全性"],
 ];
 
 export default function MultiAgentDataFactoryDemoPage() {
@@ -152,8 +162,8 @@ export default function MultiAgentDataFactoryDemoPage() {
               多 Agent 数据生产控制台
             </h1>
             <p className="mt-4 max-w-3xl text-sm leading-7 text-zinc-700">
-              输入代码 diff，系统会生成 Developer、Reviewer、Challenger、Judge 四类角色的
-              审查讨论，并自动给出训练数据质量评分。
+              输入代码 diff，系统会优先调用 DeepSeek 生成中文 Developer、Reviewer、Challenger、Judge
+              多 Agent 审查讨论；未配置 API 时自动回退到本地中文 mock。
             </p>
           </div>
           <div className="border border-zinc-950 bg-white px-4 py-3 text-sm">
@@ -165,6 +175,15 @@ export default function MultiAgentDataFactoryDemoPage() {
             >
               {apiOnline ? "ONLINE" : apiOnline === false ? "OFFLINE" : "CHECKING"}
             </span>
+            {conversation ? (
+              <div className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">
+                {conversation.generation_mode === "llm" ? "LLM" : "MOCK"}{" "}
+                {conversation.llm_provider ? `/ ${conversation.llm_provider}` : ""}
+                {conversation.llm_model ? ` / ${conversation.llm_model}` : ""}
+                <br />
+                SCORE / {conversation.scoring_mode === "llm_judge" ? "LLM JUDGE" : "HEURISTIC"}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -252,6 +271,43 @@ export default function MultiAgentDataFactoryDemoPage() {
 
               {conversation ? (
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="border border-zinc-950/20 bg-[#f6f3ec] p-3 sm:col-span-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+                      <span>Generation Mode</span>
+                      <span>
+                        {conversation.generation_mode === "llm" ? "真实 LLM" : "本地 Mock"}
+                        {conversation.llm_provider ? ` / ${conversation.llm_provider}` : ""}
+                        {conversation.llm_model ? ` / ${conversation.llm_model}` : ""}
+                      </span>
+                    </div>
+                    {conversation.llm_error ? (
+                      <p className="mt-2 text-xs leading-5 text-amber-700">
+                        LLM 回退原因：{conversation.llm_error}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="border border-zinc-950/20 bg-[#f6f3ec] p-3 sm:col-span-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-500">
+                      <span>Scoring Mode</span>
+                      <span>
+                        {conversation.scoring_mode === "llm_judge" ? "LLM-as-a-Judge" : "规则评分"}
+                        {conversation.scoring_provider ? ` / ${conversation.scoring_provider}` : ""}
+                        {conversation.scoring_model ? ` / ${conversation.scoring_model}` : ""}
+                      </span>
+                    </div>
+                    {conversation.scoring_error ? (
+                      <p className="mt-2 text-xs leading-5 text-amber-700">
+                        评分回退原因：{conversation.scoring_error}
+                      </p>
+                    ) : null}
+                    {conversation.score_feedback.length > 0 ? (
+                      <ul className="mt-3 space-y-1 text-xs leading-5 text-zinc-700">
+                        {conversation.score_feedback.map((item, index) => (
+                          <li key={`${index}-${item}`}>· {item}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
                   {scoreLabels.map(([key, label]) => (
                     <div key={key} className="border border-zinc-950/20 bg-[#f6f3ec] p-3">
                       <div className="flex justify-between text-xs font-black uppercase tracking-[0.12em] text-zinc-500">

@@ -75,6 +75,15 @@ D:\Download\Coding\CondaData\envs_dirs\llm_env\python.exe -m uvicorn app.main:ap
 ```text
 http://localhost:8001
 http://localhost:8001/docs
+http://localhost:8001/api/scenarios
+```
+
+如需启用 DeepSeek 真实 LLM 生成，请在 `multi-agent-data-factory/.env` 中配置：
+
+```env
+DEEPSEEK_API_KEY=你的_deepseek_api_key
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
 ```
 
 ### 3. 启动个人主页
@@ -125,6 +134,7 @@ http://localhost:3000/demos/multi-agent-data-factory
 
 ```text
 GET  http://localhost:8001/health
+GET  http://localhost:8001/api/scenarios
 POST http://localhost:8001/api/simulations/code-review
 GET  http://localhost:8001/api/conversations
 GET  http://localhost:8001/api/conversations/{conversation_id}
@@ -137,8 +147,8 @@ GET  http://localhost:8001/api/datasets/export.jsonl
 - 首页两个项目卡片可以跳转到详情页
 - 首页两个项目卡片可以跳转到 Demo 页面
 - `http://localhost:3000/demos/rag-agent` 可以完成 RAG 知识库问答
-- `http://localhost:3000/demos/multi-agent-data-factory` 可以生成 Code Review 多 Agent 对话
-- Multi-Agent Demo 可以展示 Agent Persona、对话轮次和质量评分
+- `http://localhost:3000/demos/multi-agent-data-factory` 可以生成中文 Code Review 多 Agent 对话
+- Multi-Agent Demo 可以展示 Agent Persona、生成模式、评分模式、中文评语和质量评分
 - 后端未启动时，Demo 页面能显示清晰错误提示
 
 ## 关联仓库
@@ -152,7 +162,7 @@ git@github.com:huaixu0909/multi-agent-data-factory.git
 ## 后续计划
 
 - 给 Multi-Agent Data Factory 接入 LangGraph
-- 给 Multi-Agent Data Factory 接入真实 LLM
+- 给 Multi-Agent Data Factory 增加 LLM-as-a-Judge 评分
 - 增加 Persona Generator
 - 增加 LLM-as-a-Judge
 - 增加数据筛选和 JSONL 导出配置

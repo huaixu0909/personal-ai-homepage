@@ -29,9 +29,9 @@ export default function MultiAgentDataFactoryProjectPage() {
           Multi-Agent Synthetic Data Factory
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-8 text-zinc-600">
-          一个面向 AI 训练数据生产的多 Agent 社会模拟系统。第一版聚焦 Code Review
+          一个面向 AI 训练数据生产的多 Agent 社会模拟系统。当前版本聚焦 Code Review
           场景，通过 Developer、Reviewer、Challenger、Judge 四类角色制造真实审查冲突，
-          生成可评分、可筛选、可导出的训练对话样本。
+          并优先调用 DeepSeek 生成中文训练对话，再通过规则评分与 LLM-as-a-Judge 判断数据质量。
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
@@ -58,8 +58,10 @@ export default function MultiAgentDataFactoryProjectPage() {
             <ul className="mt-5 space-y-3 text-zinc-600">
               <li>输入代码 diff 和 review focus。</li>
               <li>自动生成四类 Agent Persona。</li>
-              <li>模拟多轮代码审查讨论。</li>
+              <li>优先调用 DeepSeek 生成中文多轮代码审查讨论。</li>
+              <li>未配置 API key 时自动回退到本地中文 mock。</li>
               <li>自动计算 realism、difficulty、conflict、training value 等评分。</li>
+              <li>支持 LLM-as-a-Judge 输出中文质量评语。</li>
               <li>保存 conversation 到 SQLite。</li>
               <li>支持 JSONL 数据集导出。</li>
             </ul>
@@ -69,7 +71,8 @@ export default function MultiAgentDataFactoryProjectPage() {
             <ul className="mt-5 space-y-3 text-zinc-600">
               <li>FastAPI + Pydantic API 层。</li>
               <li>SQLite 本地 conversation storage。</li>
-              <li>规则化 Agent Simulator 与 Quality Scorer。</li>
+              <li>DeepSeek / OpenAI-compatible Chat Completions。</li>
+              <li>Scenario 架构下的 Agent Simulator 与 Quality Scorer。</li>
               <li>Next.js Demo 控制台。</li>
               <li>后续接入 LangGraph、LangChain 和 LLM-as-a-Judge。</li>
             </ul>
@@ -80,14 +83,14 @@ export default function MultiAgentDataFactoryProjectPage() {
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-14">
         <h2 className="text-2xl font-bold">当前开发状态</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-600">
-          当前版本是 v0.1，本质是一个最小可运行的数据生产闭环：输入代码 diff，
-          生成多 Agent 对话，计算质量分，保存并导出数据。它还不是完整平台，
-          但已经能够展示 Synthetic Data Factory 的核心工程路径。
+          当前版本是 v0.4，本质是一条可运行的数据生产闭环：输入代码 diff，
+          由 Scenario 识别风险线索，优先调用 DeepSeek 生成中文多 Agent 对话，随后由质量评分器计算分数、
+          保存并导出数据。它还不是完整平台，但已经具备 Synthetic Data Factory 的核心工程路径。
         </p>
 
         <h2 className="mt-10 text-2xl font-bold">后续计划</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-600">
-          下一步会加入真实 LLM、LangGraph 工作流、Persona Generator、LLM-as-a-Judge、
+          下一步会加入 LangGraph 工作流、Persona Generator、LLM-as-a-Judge、
           数据筛选与进化机制，让系统从规则模拟升级为真正的 AI Native 数据工厂。
         </p>
       </section>
