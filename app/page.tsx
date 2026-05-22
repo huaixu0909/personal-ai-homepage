@@ -72,15 +72,19 @@ export default function Home() {
         </nav>
       </header>
 
-      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-65px)] max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
-        <div className="pb-8">
+      <section className="relative z-10 mx-auto grid min-h-[calc(100vh-65px)] max-w-7xl gap-8 px-5 py-8 pt-14 sm:pt-16 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div className="pb-2 lg:-translate-y-6">
           <div className="inline-flex border border-cyan-300/40 bg-cyan-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100">
             AI Application Lab / RAG Builder / Agent Systems
           </div>
 
-          <h1 className="font-display mt-7 max-w-5xl text-5xl font-black leading-[0.96] text-white sm:text-7xl lg:text-8xl">
-            曾见云霞满天的
-            <span className="block text-cyan-200">AI 工程实验室</span>
+          <h1 className="font-display mt-7 max-w-4xl text-4xl font-black leading-[1.02] tracking-[-0.045em] text-white sm:text-6xl lg:text-7xl [text-shadow:0_0_26px_rgba(103,232,249,0.2)]">
+            <span className="block bg-gradient-to-r from-white via-cyan-100 to-zinc-300 bg-clip-text text-transparent">
+              曾见云霞满天的
+            </span>
+            <span className="mt-2 block bg-gradient-to-r from-cyan-200 via-white to-lime-200 bg-clip-text text-transparent">
+              AI 工程实验室
+            </span>
           </h1>
 
           <p className="mt-8 max-w-2xl border-l border-cyan-300/50 pl-5 text-base leading-8 text-zinc-300 sm:text-lg">

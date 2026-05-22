@@ -1,16 +1,20 @@
+@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@450..800&display=swap");
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-  --font-ui: "Inter", "Segoe UI Variable", "Segoe UI", "HarmonyOS Sans SC",
-    "MiSans", "Microsoft YaHei UI", "PingFang SC", "Noto Sans CJK SC",
-    Arial, sans-serif;
-  --font-display: "Space Grotesk", "Segoe UI Variable Display", "Segoe UI",
-    "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei UI", "PingFang SC",
-    sans-serif;
+  --font-ui: "Plus Jakarta Sans", "Inter", "HarmonyOS Sans SC", "MiSans",
+    system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
   --font-code: "Cascadia Code", "JetBrains Mono", "SFMono-Regular", Consolas,
     "Liberation Mono", monospace;
+  --radius-panel: 1.5rem;
+  --radius-control: 1rem;
+  --radius-pill: 999px;
+  --shadow-panel: 0 18px 42px rgba(0, 0, 0, 0.2);
+  --shadow-glow-cyan: 0 14px 34px rgba(34, 211, 238, 0.08);
+  --shadow-glow-gold: 0 18px 44px rgba(236, 214, 167, 0.1);
 }
 
 @theme inline {
@@ -31,8 +35,26 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-ui);
+  font-weight: 450;
+  line-height: 1.75;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   text-rendering: geometricPrecision;
+}
+
+p,
+span,
+li,
+label,
+input,
+textarea,
+button,
+a {
+  font-weight: 500;
+}
+
+p,
+li {
+  line-height: 1.75;
 }
 
 h1,
@@ -40,13 +62,60 @@ h2,
 h3,
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: 0;
+  letter-spacing: -0.02em;
 }
 
 code,
 pre,
 .font-code {
   font-family: var(--font-code);
+}
+
+button,
+input,
+textarea,
+select {
+  border-radius: var(--radius-control);
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease,
+    box-shadow 160ms ease, transform 160ms ease;
+}
+
+textarea {
+  line-height: 1.75;
+}
+
+pre {
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+main:not(.lab-demo-theme):not(.project-detail-theme) article,
+main:not(.lab-demo-theme):not(.project-detail-theme) .inline-flex.border,
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-black/30"],
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-black/35"],
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-white/5"],
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-cyan-300/10"],
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-[#08111b]/88"] {
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+
+main:not(.lab-demo-theme):not(.project-detail-theme) a.border,
+main:not(.lab-demo-theme):not(.project-detail-theme) span.border,
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-cyan-300"].px-2 {
+  border-radius: var(--radius-pill);
+}
+
+main:not(.lab-demo-theme):not(.project-detail-theme) article,
+main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-[#08111b]/88"] {
+  box-shadow: var(--shadow-glow-cyan);
 }
 
 .lab-demo-theme {
@@ -78,7 +147,21 @@ pre,
 
 .lab-demo-theme section,
 .lab-demo-theme article {
-  box-shadow: 0 0 34px rgba(34, 211, 238, 0.08);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  box-shadow: var(--shadow-glow-cyan);
+}
+
+.lab-demo-theme section > div.border,
+.lab-demo-theme article,
+.lab-demo-theme pre,
+.lab-demo-theme textarea,
+.lab-demo-theme input,
+.lab-demo-theme [class*="#f6f3ec"],
+.lab-demo-theme [class*="bg-white"],
+.lab-demo-theme [class*="bg-zinc-950"] {
+  border-radius: var(--radius-control);
+  overflow: hidden;
 }
 
 .lab-demo-theme .text-zinc-950,
@@ -135,6 +218,19 @@ pre,
     transform 160ms ease;
 }
 
+.lab-demo-theme button,
+.lab-demo-theme a.border,
+.lab-demo-theme input {
+  border-radius: var(--radius-control);
+}
+
+.lab-demo-theme span.border,
+.lab-demo-theme .inline-flex.border,
+.lab-demo-theme [class*="px-2.5"],
+.lab-demo-theme [class*="px-3"][class*="py-1"] {
+  border-radius: var(--radius-pill);
+}
+
 .lab-demo-theme button:hover,
 .lab-demo-theme a:hover {
   border-color: rgba(190, 242, 100, 0.88) !important;
@@ -162,6 +258,8 @@ pre,
 .project-detail-theme .bg-white,
 .project-detail-theme .bg-zinc-50 {
   background-color: rgba(25, 34, 46, 0.78) !important;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
 }
 
 .project-detail-theme .bg-zinc-950 {
@@ -220,6 +318,18 @@ pre,
     transform 160ms ease;
 }
 
+.project-detail-theme article,
+.project-detail-theme .border,
+.project-detail-theme a.border,
+.project-detail-theme a.rounded-md {
+  border-radius: var(--radius-panel);
+}
+
+.project-detail-theme a.rounded-md,
+.project-detail-theme a.border {
+  border-radius: var(--radius-pill);
+}
+
 .project-detail-theme a:hover {
   border-color: rgba(236, 214, 167, 0.86) !important;
   color: #fff8ea !important;
@@ -236,12 +346,14 @@ pre,
 
 .project-detail-theme section:nth-of-type(2) > div {
   border: 1px solid rgba(236, 214, 167, 0.14);
+  border-radius: var(--radius-panel);
   background: linear-gradient(135deg, rgba(255, 248, 234, 0.045), rgba(255, 255, 255, 0.015));
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  box-shadow: var(--shadow-glow-gold);
 }
 
 .project-detail-theme a.rounded-md {
-  border-radius: 0;
+  border-radius: var(--radius-pill);
   font-weight: 700;
   letter-spacing: 0.02em;
 }

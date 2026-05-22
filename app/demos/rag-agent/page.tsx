@@ -16,13 +16,25 @@ type Source = {
 };
 
 type ChatResponse = {
+  session_id: string;
+  rewritten_question: string;
   answer: string;
   sources: Source[];
-  mode: "langgraph_deepseek" | "langchain_deepseek" | "deepseek" | "retrieval_template";
+  mode: "langgraph_deepseek" | "langchain_deepseek" | "deepseek" | "retrieval_template" | "knowledge_overview";
   retrieval_mode?: "chroma" | "local_hash_embedding";
   score_threshold?: number;
   workflow?: "langgraph" | "manual";
   graph_path?: string[];
+  messages?: ChatMessage[];
+  overview?: KnowledgeOverview | null;
+};
+
+type ChatMessage = {
+  id: string;
+  session_id: string;
+  role: "user" | "assistant";
+  content: string;
+  created_at: string;
 };
 
 type DocumentRecord = {
@@ -32,9 +44,30 @@ type DocumentRecord = {
   stored_path: string;
   parsed_path: string;
   chunks_path: string;
+  content_hash: string;
+  summary: string;
+  tags: string[];
   char_count: number;
   chunk_count: number;
   created_at: string;
+};
+
+type KnowledgeOverviewDocument = {
+  document_id: string;
+  filename: string;
+  file_type: string;
+  char_count: number;
+  chunk_count: number;
+  created_at: string;
+  preview: string;
+};
+
+type KnowledgeOverview = {
+  document_count: number;
+  total_chunks: number;
+  total_char_count: number;
+  documents: KnowledgeOverviewDocument[];
+  truncated: boolean;
 };
 
 type DocumentListResponse = {
@@ -49,10 +82,11 @@ type DocumentListResponse = {
 type UploadQueueItem = {
   file_id?: string;
   filename: string;
-  status: "queued" | "uploading" | "running" | "indexed" | "failed";
+  status: "queued" | "uploading" | "running" | "indexed" | "failed" | "duplicate";
   stage: string;
   document_id?: string;
   document?: DocumentRecord | null;
+  duplicate_document?: DocumentRecord | null;
   char_count?: number;
   chunk_count?: number;
   error?: string;
@@ -147,6 +181,21 @@ type VectorStoreStatus = {
 const apiBaseUrl = "http://localhost:8000";
 const sampleQuestion = "这份文档里和 RAG 项目经验、技术能力最相关的内容是什么？";
 const documentsPerPage = 10;
+const suggestedDocumentTags = ["简历", "项目文档", "面试资料"];
+
+const ingestStageLabels: Record<string, string> = {
+  uploaded: "上传",
+  queued: "排队",
+  parsing: "解析",
+  chunking: "切分",
+  embedding: "向量化",
+  indexing: "入库",
+  indexed: "完成",
+  duplicate: "重复",
+  failed: "失败",
+};
+
+const ingestStageOrder = ["uploaded", "parsing", "chunking", "embedding", "indexing", "indexed"];
 
 const strategyLabel: Record<string, string> = {
   semantic: "语义切分",
@@ -167,6 +216,7 @@ function modeLabel(mode?: string) {
   if (mode === "langgraph_deepseek") return "LangGraph + DeepSeek";
   if (mode === "langchain_deepseek") return "LangChain + DeepSeek";
   if (mode === "deepseek") return "DeepSeek";
+  if (mode === "knowledge_overview") return "Knowledge Overview";
   if (mode === "chroma") return "Chroma";
   if (mode === "local_hash_embedding") return "JSON Fallback";
   if (mode === "hybrid_rerank") return "Hybrid Rerank";
@@ -179,10 +229,27 @@ function delay(ms: number) {
   });
 }
 
+function parseTagInput(input: string) {
+  return input
+    .split(/[,，\n]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function uploadStageIndex(item: UploadQueueItem) {
+  if (item.status === "indexed") return ingestStageOrder.length - 1;
+  if (item.status === "failed" || item.status === "duplicate") return -1;
+  const index = ingestStageOrder.indexOf(item.stage);
+  return index >= 0 ? index : 0;
+}
+
 export default function RagAgentDemoPage() {
   const [question, setQuestion] = useState(sampleQuestion);
   const [topK, setTopK] = useState(5);
   const [scoreThreshold, setScoreThreshold] = useState(0.2);
+  const [chatSessionId, setChatSessionId] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatResult, setChatResult] = useState<ChatResponse | null>(null);
   const [searchResult, setSearchResult] = useState<SearchResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
@@ -195,6 +262,8 @@ export default function RagAgentDemoPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadInputKey, setUploadInputKey] = useState(0);
   const [uploadProgress, setUploadProgress] = useState<UploadQueueItem[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
+  const [tagSaving, setTagSaving] = useState(false);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
@@ -236,7 +305,9 @@ export default function RagAgentDemoPage() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}`);
       if (!response.ok) throw new Error(`文档详情加载失败：${response.status}`);
-      setDocumentDetail((await response.json()) as DocumentDetail);
+      const data = (await response.json()) as DocumentDetail;
+      setDocumentDetail(data);
+      setTagDraft(data.document.tags?.join(", ") ?? "");
       setApiOnline(true);
     } catch (detailError) {
       setApiOnline(false);
@@ -358,7 +429,11 @@ export default function RagAgentDemoPage() {
   };
 
   const handleDeleteDocument = async (documentId: string) => {
-    if (!window.confirm("确定要删除这个文档吗？原始文件、解析文本和 chunks 都会一起删除。")) {
+    if (
+      !window.confirm(
+        "确定删除这个文档吗？系统会同步删除 SQLite 元数据、Chroma 向量索引、原始文件、解析文本和 chunks 文件。",
+      )
+    ) {
       return;
     }
 
@@ -375,7 +450,10 @@ export default function RagAgentDemoPage() {
         throw new Error(detail?.detail ?? `删除失败：${response.status}`);
       }
 
-      if (documentDetail?.document.id === documentId) setDocumentDetail(null);
+      if (documentDetail?.document.id === documentId) {
+        setDocumentDetail(null);
+        setTagDraft("");
+      }
       setSearchResult(null);
       setChatResult(null);
       await refreshWorkspace();
@@ -383,6 +461,41 @@ export default function RagAgentDemoPage() {
       setError(deleteError instanceof Error ? deleteError.message : "无法删除文档。");
     } finally {
       setDeletingDocumentId(null);
+    }
+  };
+
+  const handleUpdateDocumentTags = async (documentId: string, tags: string[]) => {
+    setTagSaving(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}/tags`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags }),
+      });
+
+      if (!response.ok) {
+        const detail = await response.json().catch(() => null);
+        throw new Error(detail?.detail ?? `标签保存失败：${response.status}`);
+      }
+
+      const updatedDocument = (await response.json()) as DocumentRecord;
+      setDocuments((items) =>
+        items.map((item) => (item.id === updatedDocument.id ? updatedDocument : item)),
+      );
+      setDocumentDetail((detail) =>
+        detail && detail.document.id === updatedDocument.id
+          ? { ...detail, document: updatedDocument }
+          : detail,
+      );
+      setTagDraft(updatedDocument.tags.join(", "));
+      setApiOnline(true);
+    } catch (tagError) {
+      setApiOnline(false);
+      setError(tagError instanceof Error ? tagError.message : "无法保存文档标签。");
+    } finally {
+      setTagSaving(false);
     }
   };
 
@@ -449,11 +562,15 @@ export default function RagAgentDemoPage() {
           question,
           top_k: topK,
           score_threshold: scoreThreshold,
+          session_id: chatSessionId || undefined,
         }),
       });
 
       if (!response.ok) throw new Error(`问答请求失败：${response.status}`);
-      setChatResult((await response.json()) as ChatResponse);
+      const data = (await response.json()) as ChatResponse;
+      setChatResult(data);
+      setChatSessionId(data.session_id);
+      setChatMessages(data.messages ?? []);
       setApiOnline(true);
       setLatency(Math.round(performance.now() - startedAt));
     } catch (chatError) {
@@ -462,6 +579,15 @@ export default function RagAgentDemoPage() {
     } finally {
       setChatLoading(false);
     }
+  };
+
+  const startNewChatSession = () => {
+    setChatSessionId("");
+    setChatMessages([]);
+    setChatResult(null);
+    setQuestion("");
+    setError("");
+    setLatency(null);
   };
 
   const currentDocumentPage = documentPage;
@@ -588,7 +714,7 @@ export default function RagAgentDemoPage() {
                           className={`shrink-0 font-black ${
                             item.status === "indexed"
                               ? "text-lime-700"
-                              : item.status === "failed"
+                              : item.status === "failed" || item.status === "duplicate"
                                 ? "text-red-700"
                                 : "text-blue-700"
                           }`}
@@ -597,9 +723,29 @@ export default function RagAgentDemoPage() {
                             ? "已入库"
                             : item.status === "failed"
                               ? "失败"
+                              : item.status === "duplicate"
+                                ? "重复"
                               : item.stage}
                         </span>
-                        {item.error ? <span className="max-w-32 truncate text-red-700">{item.error}</span> : null}
+                        <div className="hidden shrink-0 gap-1 md:flex">
+                          {ingestStageOrder.map((stage, stageIndex) => {
+                            const activeIndex = uploadStageIndex(item);
+                            const isDone = activeIndex >= stageIndex;
+                            return (
+                              <span
+                                key={stage}
+                                className={`border px-2 py-0.5 text-[10px] font-black ${
+                                  isDone
+                                    ? "border-lime-500 text-lime-600"
+                                    : "border-zinc-700 text-zinc-500"
+                                }`}
+                              >
+                                {ingestStageLabels[stage]}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        {item.error ? <span className="max-w-40 truncate text-red-700">{item.error}</span> : null}
                       </div>
                     ))}
                   </div>
@@ -619,14 +765,28 @@ export default function RagAgentDemoPage() {
                     </p>
                     <h2 className="mt-2 font-black">提出问题</h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setQuestion(sampleQuestion)}
-                    className="text-sm font-bold text-lime-300"
-                  >
-                    示例
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setQuestion(sampleQuestion)}
+                      className="text-sm font-bold text-lime-300"
+                    >
+                      示例
+                    </button>
+                    <button
+                      type="button"
+                      onClick={startNewChatSession}
+                      className="text-sm font-bold text-cyan-200"
+                    >
+                      新会话
+                    </button>
+                  </div>
                 </div>
+                {chatSessionId ? (
+                  <p className="mt-3 truncate border border-white/15 bg-black/30 px-3 py-2 text-xs font-bold text-zinc-400">
+                    Session: {chatSessionId}
+                  </p>
+                ) : null}
                 <textarea
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}
@@ -748,6 +908,23 @@ export default function RagAgentDemoPage() {
                             <p className="mt-2 text-xs text-zinc-400">
                               {new Date(document.created_at).toLocaleString()}
                             </p>
+                            {document.summary ? (
+                              <p className="mt-3 line-clamp-3 text-xs leading-5 text-zinc-600">
+                                {document.summary}
+                              </p>
+                            ) : null}
+                            {document.tags?.length ? (
+                              <div className="mt-3 flex flex-wrap gap-1">
+                                {document.tags.map((tag) => (
+                                  <span
+                                    key={tag}
+                                    className="border border-cyan-300/30 bg-cyan-300/10 px-2 py-0.5 text-[10px] font-black text-blue-700"
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
                           </button>
                           <button
                             type="button"
@@ -816,11 +993,65 @@ export default function RagAgentDemoPage() {
                 ) : null}
               </div>
 
+              {chatMessages.length > 0 ? (
+                <div className="mt-4 grid gap-3">
+                  {chatMessages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={`border p-3 ${
+                        message.role === "user"
+                          ? "border-cyan-300/30 bg-black/30"
+                          : "border-lime-300/30 bg-[#f6f3ec]"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+                          {message.role === "user" ? "User" : "Assistant"}
+                        </span>
+                        <span className="text-xs text-zinc-500">
+                          {new Date(message.created_at).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <p className="mt-2 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-zinc-700">
+                        {message.content}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+
               {chatResult ? (
                 <div className="mt-4 space-y-5">
                   <p className="whitespace-pre-wrap border-l-4 border-blue-600 pl-4 leading-8 text-zinc-800">
                     {chatResult.answer}
                   </p>
+                  {chatResult.overview ? (
+                    <div className="grid gap-3 border border-zinc-950/20 bg-[#f6f3ec] p-4 text-sm sm:grid-cols-3">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">Documents</p>
+                        <p className="mt-1 text-2xl font-black text-zinc-950">
+                          {chatResult.overview.document_count}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">Chunks</p>
+                        <p className="mt-1 text-2xl font-black text-zinc-950">
+                          {chatResult.overview.total_chunks}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">Characters</p>
+                        <p className="mt-1 text-2xl font-black text-zinc-950">
+                          {chatResult.overview.total_char_count.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
+                  {chatResult.rewritten_question && chatResult.rewritten_question !== question ? (
+                    <p className="border border-zinc-950/20 bg-[#f6f3ec] px-3 py-2 text-xs leading-5 text-zinc-500">
+                      Context Query：{chatResult.rewritten_question}
+                    </p>
+                  ) : null}
                   <div className="grid gap-2 text-xs text-zinc-500 sm:grid-cols-3">
                     <span>流程：{chatResult.workflow ?? "manual"}</span>
                     <span>检索：{modeLabel(chatResult.retrieval_mode)}</span>
@@ -965,6 +1196,53 @@ export default function RagAgentDemoPage() {
                     <p>类型：{documentDetail.document.file_type}</p>
                     <p>字符数：{documentDetail.document.char_count}</p>
                     <p>Chunks：{documentDetail.document.chunk_count}</p>
+                    <p className="md:col-span-2">
+                      Hash：{documentDetail.document.content_hash?.slice(0, 16) || "N/A"}
+                    </p>
+                  </div>
+                  <div className="border border-zinc-950 bg-[#f6f3ec] p-4">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
+                      Summary
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-zinc-600">
+                      {documentDetail.document.summary || "暂无摘要。新上传文档会在入库时自动生成摘要。"}
+                    </p>
+                    <div className="mt-4">
+                      <label className="text-xs font-black uppercase tracking-[0.16em] text-zinc-500">
+                        Tags
+                        <input
+                          value={tagDraft}
+                          onChange={(event) => setTagDraft(event.target.value)}
+                          placeholder="简历, 项目文档, 面试资料"
+                          className="mt-2 w-full border border-zinc-950 bg-black/30 px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {suggestedDocumentTags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => {
+                              const nextTags = Array.from(new Set([...parseTagInput(tagDraft), tag]));
+                              setTagDraft(nextTags.join(", "));
+                            }}
+                            className="border border-cyan-300/30 px-3 py-1 text-xs font-bold text-blue-700"
+                          >
+                            {tag}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleUpdateDocumentTags(documentDetail.document.id, parseTagInput(tagDraft))
+                          }
+                          disabled={tagSaving}
+                          className="border border-lime-400 bg-lime-100 px-3 py-1 text-xs font-black text-zinc-950 disabled:opacity-50"
+                        >
+                          {tagSaving ? "保存中..." : "保存标签"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                   <pre className="max-h-56 overflow-auto whitespace-pre-wrap border border-zinc-950 bg-zinc-950 p-4 text-sm leading-6 text-zinc-100">
                     {documentDetail.text_preview || "暂无可预览文本。"}
