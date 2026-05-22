@@ -21,10 +21,10 @@ const projects = [
     id: "02",
     name: "Multi-Agent Data Factory",
     cnName: "多 Agent 数据合成平台",
-    status: "v0.4 / LLM Judge",
+    status: "v0.6 / Interview",
     description:
-      "通过 DeepSeek 生成中文 Code Review 多 Agent 对话，并用规则评分与 LLM-as-a-Judge 评估训练价值。",
-    stack: ["FastAPI", "DeepSeek", "Multi-Agent", "SQLite"],
+      "通过 DeepSeek 生成中文 Code Review、客服投诉、技术面试多 Agent 对话，并用质量评分器评估训练价值。",
+    stack: ["FastAPI", "DeepSeek", "Scenario", "SQLite"],
     demoHref: "/demos/multi-agent-data-factory",
     detailHref: "/projects/multi-agent-data-factory",
     githubHref: `${githubUrl}/multi-agent-data-factory`,

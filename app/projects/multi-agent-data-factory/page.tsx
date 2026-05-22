@@ -29,9 +29,9 @@ export default function MultiAgentDataFactoryProjectPage() {
           Multi-Agent Synthetic Data Factory
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-8 text-zinc-600">
-          一个面向 AI 训练数据生产的多 Agent 社会模拟系统。当前版本聚焦 Code Review
-          场景，通过 Developer、Reviewer、Challenger、Judge 四类角色制造真实审查冲突，
-          并优先调用 DeepSeek 生成中文训练对话，再通过规则评分与 LLM-as-a-Judge 判断数据质量。
+          一个面向 AI 训练数据生产的多 Agent 社会模拟系统。当前版本支持 Code Review、
+          客服投诉和技术面试三个场景，通过多角色制造真实冲突，并优先调用 DeepSeek 生成中文训练对话，
+          再通过规则评分与 LLM-as-a-Judge 判断数据质量。
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
@@ -59,6 +59,8 @@ export default function MultiAgentDataFactoryProjectPage() {
               <li>输入代码 diff 和 review focus。</li>
               <li>自动生成四类 Agent Persona。</li>
               <li>优先调用 DeepSeek 生成中文多轮代码审查讨论。</li>
+              <li>支持客服投诉场景：用户投诉、情绪升级、客服安抚、合规审核。</li>
+              <li>支持技术面试场景：面试官提问、候选人回答、追问和能力评分。</li>
               <li>未配置 API key 时自动回退到本地中文 mock。</li>
               <li>自动计算 realism、difficulty、conflict、training value 等评分。</li>
               <li>支持 LLM-as-a-Judge 输出中文质量评语。</li>
@@ -83,8 +85,8 @@ export default function MultiAgentDataFactoryProjectPage() {
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-14">
         <h2 className="text-2xl font-bold">当前开发状态</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-600">
-          当前版本是 v0.4，本质是一条可运行的数据生产闭环：输入代码 diff，
-          由 Scenario 识别风险线索，优先调用 DeepSeek 生成中文多 Agent 对话，随后由质量评分器计算分数、
+          当前版本是 v0.6，本质是一条可运行的多场景数据生产闭环：输入场景素材，
+          由 Scenario 识别问题线索，优先调用 DeepSeek 生成中文多 Agent 对话，随后由质量评分器计算分数、
           保存并导出数据。它还不是完整平台，但已经具备 Synthetic Data Factory 的核心工程路径。
         </p>
 

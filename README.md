@@ -136,6 +136,8 @@ http://localhost:3000/demos/multi-agent-data-factory
 GET  http://localhost:8001/health
 GET  http://localhost:8001/api/scenarios
 POST http://localhost:8001/api/simulations/code-review
+POST http://localhost:8001/api/simulations/customer-complaint
+POST http://localhost:8001/api/simulations/technical-interview
 GET  http://localhost:8001/api/conversations
 GET  http://localhost:8001/api/conversations/{conversation_id}
 GET  http://localhost:8001/api/datasets/export.jsonl
@@ -147,7 +149,7 @@ GET  http://localhost:8001/api/datasets/export.jsonl
 - 首页两个项目卡片可以跳转到详情页
 - 首页两个项目卡片可以跳转到 Demo 页面
 - `http://localhost:3000/demos/rag-agent` 可以完成 RAG 知识库问答
-- `http://localhost:3000/demos/multi-agent-data-factory` 可以生成中文 Code Review 多 Agent 对话
+- `http://localhost:3000/demos/multi-agent-data-factory` 可以生成中文 Code Review、客服投诉和技术面试多 Agent 对话
 - Multi-Agent Demo 可以展示 Agent Persona、生成模式、评分模式、中文评语和质量评分
 - 后端未启动时，Demo 页面能显示清晰错误提示
 
