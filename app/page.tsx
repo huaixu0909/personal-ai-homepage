@@ -19,15 +19,15 @@ const projects = [
   },
   {
     id: "02",
-    name: "JD Resume Analyzer",
-    cnName: "JD-简历匹配系统",
-    status: "MVP / Local",
+    name: "Multi-Agent Data Factory",
+    cnName: "多 Agent 数据合成平台",
+    status: "v0.1 / Simulation",
     description:
-      "输入岗位 JD 和简历文本，分析匹配度、技能差距，并生成面向求职准备的学习计划。",
-    stack: ["FastAPI", "NLP", "Scoring", "Planner"],
-    demoHref: "/demos/jd-resume-analyzer",
-    detailHref: "/projects/jd-resume-analyzer",
-    githubHref: `${githubUrl}/jd-resume-analyzer`,
+      "通过 Developer、Reviewer、Challenger、Judge 多角色模拟代码审查冲突，生成可评分、可筛选、可导出的训练对话数据。",
+    stack: ["FastAPI", "Multi-Agent", "Synthetic Data", "SQLite"],
+    demoHref: "/demos/multi-agent-data-factory",
+    detailHref: "/projects/multi-agent-data-factory",
+    githubHref: `${githubUrl}/multi-agent-data-factory`,
     accent: "bg-lime-300",
   },
 ];
@@ -35,7 +35,7 @@ const projects = [
 const labSignals = [
   ["Homepage", "localhost:3000", "ONLINE"],
   ["RAG Agent", "localhost:8000", "DEEPSEEK"],
-  ["JD Analyzer", "localhost:8001", "MVP"],
+  ["Data Factory", "localhost:8001", "AGENTS"],
 ];
 
 const telemetry = [
