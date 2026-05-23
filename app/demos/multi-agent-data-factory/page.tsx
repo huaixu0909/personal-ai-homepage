@@ -18,6 +18,10 @@ type Persona = {
   focus: string;
   goal: string;
   tolerance: string;
+  memory_notes?: string[];
+  success_patterns?: string[];
+  failure_patterns?: string[];
+  strategy_notes?: string[];
 };
 
 type Message = {
@@ -68,6 +72,8 @@ type ConversationRecord = {
     agent_id: string;
     persona_id?: string | null;
     mode: string;
+    route_reason?: string | null;
+    memory_context_count?: number;
     error?: string | null;
   }>;
   created_at: string;
@@ -105,12 +111,37 @@ type PersonaRecord = {
   success_count: number;
   weight: number;
   memory_notes: string[];
+  success_patterns: string[];
+  failure_patterns: string[];
+  strategy_notes: string[];
   created_at: string;
   updated_at: string;
 };
 
 type PersonaListResponse = {
   items: PersonaRecord[];
+  total: number;
+};
+
+type BatchJobRecord = {
+  job_id: string;
+  scenario: ScenarioType;
+  status: "queued" | "running" | "completed" | "failed";
+  total: number;
+  completed: number;
+  accepted: number;
+  failed: number;
+  min_score: number;
+  payload: Record<string, unknown>;
+  conversation_ids: string[];
+  error?: string | null;
+  created_at: string;
+  started_at?: string | null;
+  finished_at?: string | null;
+};
+
+type BatchJobListResponse = {
+  items: BatchJobRecord[];
   total: number;
 };
 
@@ -174,6 +205,11 @@ export default function MultiAgentDataFactoryDemoPage() {
   const [historyTotalPages, setHistoryTotalPages] = useState(1);
   const [personas, setPersonas] = useState<PersonaRecord[]>([]);
   const [personasLoading, setPersonasLoading] = useState(false);
+  const [jobs, setJobs] = useState<BatchJobRecord[]>([]);
+  const [activeJob, setActiveJob] = useState<BatchJobRecord | null>(null);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchTotal, setBatchTotal] = useState(5);
 
   const [codeDiff, setCodeDiff] = useState(`+ query = f"SELECT * FROM users WHERE id = {user_id}"
 + cursor.execute(query)
@@ -235,11 +271,12 @@ export default function MultiAgentDataFactoryDemoPage() {
   useEffect(() => {
     const loadStatus = async () => {
       try {
-        const [healthResponse, scenariosResponse, historyResponse, personasResponse] = await Promise.all([
+        const [healthResponse, scenariosResponse, historyResponse, personasResponse, jobsResponse] = await Promise.all([
           fetch(`${apiBaseUrl}/health`),
           fetch(`${apiBaseUrl}/api/scenarios`),
           fetch(`${apiBaseUrl}/api/conversations?scenario=code_review&page=1&page_size=${pageSize}`),
           fetch(`${apiBaseUrl}/api/personas`),
+          fetch(`${apiBaseUrl}/api/jobs`),
         ]);
         setApiOnline(healthResponse.ok);
         if (scenariosResponse.ok) {
@@ -257,12 +294,40 @@ export default function MultiAgentDataFactoryDemoPage() {
           const data = (await personasResponse.json()) as PersonaListResponse;
           setPersonas(data.items);
         }
+        if (jobsResponse.ok) {
+          const data = (await jobsResponse.json()) as BatchJobListResponse;
+          setJobs(data.items);
+          setActiveJob(data.items.find((item) => item.status === "running" || item.status === "queued") ?? data.items[0] ?? null);
+        }
       } catch {
         setApiOnline(false);
       }
     };
     loadStatus();
   }, []);
+
+  useEffect(() => {
+    if (!activeJob || (activeJob.status !== "queued" && activeJob.status !== "running")) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/jobs/${activeJob.job_id}`);
+        if (!response.ok) throw new Error("job polling failed");
+        const data = (await response.json()) as BatchJobRecord;
+        setActiveJob(data);
+        setJobs((items) => [data, ...items.filter((item) => item.job_id !== data.job_id)]);
+        if (data.status === "completed" || data.status === "failed") {
+          await loadHistory(1);
+          await loadPersonas();
+          await loadJobs();
+        }
+      } catch {
+        setApiOnline(false);
+      }
+    }, 1200);
+    return () => window.clearInterval(timer);
+  // Polling should stay tied to the selected job, not to every filter change in the page.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeJob?.job_id, activeJob?.status]);
 
   function buildTemplates(): Template[] {
     if (scenario === "code_review") {
@@ -423,42 +488,64 @@ export default function MultiAgentDataFactoryDemoPage() {
     }
   }
 
+  async function loadJobs() {
+    setJobsLoading(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/jobs`);
+      if (!response.ok) throw new Error("jobs failed");
+      const data = (await response.json()) as BatchJobListResponse;
+      setJobs(data.items);
+      setActiveJob((current) => {
+        if (!current) return data.items[0] ?? null;
+        return data.items.find((item) => item.job_id === current.job_id) ?? data.items[0] ?? null;
+      });
+      setApiOnline(true);
+    } catch {
+      setApiOnline(false);
+    } finally {
+      setJobsLoading(false);
+    }
+  }
+
+  function buildSimulationPayload() {
+    return scenario === "code_review"
+      ? {
+          language,
+          code_diff: codeDiff,
+          review_focus: reviewFocus
+            .split(/[,，\s]+/)
+            .map((item) => item.trim())
+            .filter(Boolean),
+          max_turns: maxTurns,
+        }
+      : scenario === "customer_complaint"
+        ? {
+            industry,
+            complaint_type: complaintType,
+            customer_profile: customerProfile,
+            complaint_detail: complaintDetail,
+            company_policy: companyPolicy,
+            emotion_level: emotionLevel,
+            max_turns: maxTurns,
+          }
+        : {
+            target_role: targetRole,
+            candidate_level: candidateLevel,
+            topic: interviewTopic,
+            difficulty: interviewDifficulty,
+            candidate_profile: candidateProfile,
+            interview_context: interviewContext,
+            max_turns: maxTurns,
+          };
+  }
+
   async function runSimulation() {
     setLoading(true);
     setError("");
     setCopied("");
     setConversation(null);
 
-    const payload =
-      scenario === "code_review"
-        ? {
-            language,
-            code_diff: codeDiff,
-            review_focus: reviewFocus
-              .split(/[,，\s]+/)
-              .map((item) => item.trim())
-              .filter(Boolean),
-            max_turns: maxTurns,
-          }
-        : scenario === "customer_complaint"
-          ? {
-              industry,
-              complaint_type: complaintType,
-              customer_profile: customerProfile,
-              complaint_detail: complaintDetail,
-              company_policy: companyPolicy,
-              emotion_level: emotionLevel,
-              max_turns: maxTurns,
-            }
-          : {
-              target_role: targetRole,
-              candidate_level: candidateLevel,
-              topic: interviewTopic,
-              difficulty: interviewDifficulty,
-              candidate_profile: candidateProfile,
-              interview_context: interviewContext,
-              max_turns: maxTurns,
-            };
+    const payload = buildSimulationPayload();
 
     try {
       const response = await fetch(`${apiBaseUrl}${endpoints[scenario]}`, {
@@ -490,6 +577,34 @@ export default function MultiAgentDataFactoryDemoPage() {
     await navigator.clipboard.writeText(JSON.stringify(conversation, null, 2));
     setCopied("已复制 JSON");
     setTimeout(() => setCopied(""), 1800);
+  }
+
+  async function startBatchJob() {
+    setBatchLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenario,
+          total: batchTotal,
+          min_score: Number(minScore) || 0,
+          payload: buildSimulationPayload(),
+        }),
+      });
+      if (!response.ok) throw new Error(`Batch job failed: ${response.status}`);
+      const data = (await response.json()) as BatchJobRecord;
+      setActiveJob(data);
+      setJobs((items) => [data, ...items.filter((item) => item.job_id !== data.job_id)]);
+      setApiOnline(true);
+      await loadJobs();
+    } catch (jobError) {
+      setApiOnline(false);
+      setError(jobError instanceof Error ? jobError.message : "无法创建批量生成任务。");
+    } finally {
+      setBatchLoading(false);
+    }
   }
 
   return (
@@ -681,6 +796,18 @@ export default function MultiAgentDataFactoryDemoPage() {
               </p>
             ) : null}
 
+            <BatchJobPanel
+              batchTotal={batchTotal}
+              setBatchTotal={setBatchTotal}
+              activeJob={activeJob}
+              jobs={jobs}
+              loading={batchLoading || jobsLoading}
+              canSubmit={canSubmit}
+              onStart={startBatchJob}
+              onRefresh={loadJobs}
+              onSelect={setActiveJob}
+            />
+
             <DatasetPanel
               history={history}
               loading={historyLoading}
@@ -734,6 +861,9 @@ function formatTime(value: string) {
 }
 
 function formatGenerationMode(mode: string) {
+  if (mode === "langgraph_routed_llm") return "Routed Agents LLM";
+  if (mode === "langgraph_routed_mixed") return "Routed Agents Mixed";
+  if (mode === "langgraph_routed_mock") return "Routed Agents Mock";
   if (mode === "langgraph_agent_llm") return "Agent Nodes LLM";
   if (mode === "langgraph_agent_mixed") return "Agent Nodes Mixed";
   if (mode === "langgraph_agent_mock") return "Agent Nodes Mock";
@@ -745,6 +875,8 @@ function formatGenerationMode(mode: string) {
 }
 
 function formatWorkflowEngine(engine: string) {
+  if (engine === "langgraph_memory_agents") return "Memory Agents";
+  if (engine === "langgraph_conditional_agents") return "Conditional Agents";
   if (engine === "langgraph_agent_nodes") return "Agent Nodes";
   if (engine === "langgraph") return "LangGraph";
   if (engine === "legacy") return "Legacy";
@@ -999,6 +1131,124 @@ function TechnicalInterviewForm({
   );
 }
 
+function BatchJobPanel({
+  batchTotal,
+  setBatchTotal,
+  activeJob,
+  jobs,
+  loading,
+  canSubmit,
+  onStart,
+  onRefresh,
+  onSelect,
+}: {
+  batchTotal: number;
+  setBatchTotal: (value: number) => void;
+  activeJob: BatchJobRecord | null;
+  jobs: BatchJobRecord[];
+  loading: boolean;
+  canSubmit: boolean;
+  onStart: () => void;
+  onRefresh: () => void;
+  onSelect: (job: BatchJobRecord) => void;
+}) {
+  const progress = activeJob ? Math.round(((activeJob.completed + activeJob.failed) / activeJob.total) * 100) : 0;
+  const statusClassName =
+    activeJob?.status === "completed"
+      ? "text-lime-300"
+      : activeJob?.status === "failed"
+        ? "text-red-300"
+        : activeJob?.status === "running"
+          ? "text-cyan-200"
+          : "text-amber-200";
+
+  return (
+    <div className="mt-5 rounded-3xl border border-cyan-300/20 bg-black/25 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">Batch Queue</p>
+          <h3 className="mt-1 font-black text-white">批量生成任务队列</h3>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">
+            提交后接口立即返回 job_id，后台按顺序生成样本、写入 SQLite，并持续更新进度。
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          className="rounded-full border border-cyan-300/40 px-3 py-1.5 text-xs font-black text-cyan-100"
+        >
+          {loading ? "刷新中..." : "刷新任务"}
+        </button>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+        <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+          批量数量：{batchTotal}
+          <input
+            type="range"
+            min={1}
+            max={20}
+            value={batchTotal}
+            onChange={(event) => setBatchTotal(Number(event.target.value))}
+            className="mt-3 w-full"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={onStart}
+          disabled={!canSubmit || loading}
+          className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+        >
+          {loading ? "提交中..." : "启动批量任务"}
+        </button>
+      </div>
+
+      {activeJob ? (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em]">
+            <span className="text-zinc-400">{activeJob.job_id}</span>
+            <span className={statusClassName}>{activeJob.status}</span>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-black">
+            <div className="h-full rounded-full bg-cyan-300" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="mt-3 grid gap-2 text-xs text-zinc-400 sm:grid-cols-4">
+            <span>完成 {activeJob.completed}/{activeJob.total}</span>
+            <span>通过 {activeJob.accepted}</span>
+            <span>失败 {activeJob.failed}</span>
+            <span>{formatTime(activeJob.created_at)}</span>
+          </div>
+          {activeJob.error ? <p className="mt-2 text-xs leading-5 text-amber-300">{activeJob.error}</p> : null}
+        </div>
+      ) : (
+        <p className="mt-3 rounded-2xl border border-dashed border-white/15 p-4 text-xs text-zinc-500">
+          暂无批量任务。先配置当前场景素材，然后启动批量任务。
+        </p>
+      )}
+
+      {jobs.length > 0 ? (
+        <div className="mt-3 grid gap-2">
+          {jobs.slice(0, 4).map((job) => (
+            <button
+              key={job.job_id}
+              type="button"
+              onClick={() => onSelect(job)}
+              className="rounded-2xl border border-white/10 bg-black/20 p-3 text-left text-xs transition hover:border-cyan-300/40"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-bold text-zinc-200">{job.job_id}</span>
+                <span className="text-zinc-500">
+                  {scenarioLabels[job.scenario]} / {job.status} / {job.completed + job.failed}/{job.total}
+                </span>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DatasetPanel({
   history,
   loading,
@@ -1231,6 +1481,11 @@ function PersonaPoolPanel({
               <p className="mt-3 rounded-xl border border-white/10 bg-black/25 p-3 text-xs leading-5 text-zinc-400">
                 {persona.memory_notes[0] ?? "等待真实生成结果积累记忆。"}
               </p>
+              <div className="mt-3 grid gap-2 md:grid-cols-3">
+                <MemoryList title="成功经验" items={persona.success_patterns ?? []} tone="lime" />
+                <MemoryList title="失败教训" items={persona.failure_patterns ?? []} tone="amber" />
+                <MemoryList title="策略建议" items={persona.strategy_notes ?? []} tone="cyan" />
+              </div>
             </article>
           ))}
         </div>
@@ -1238,6 +1493,39 @@ function PersonaPoolPanel({
         <p className="mt-3 rounded-2xl border border-dashed border-white/15 p-4 text-xs text-zinc-500">
           后端启动后会自动初始化默认 Persona 池。
         </p>
+      )}
+    </div>
+  );
+}
+
+function MemoryList({
+  title,
+  items,
+  tone,
+}: {
+  title: string;
+  items: string[];
+  tone: "lime" | "amber" | "cyan";
+}) {
+  const toneClassName =
+    tone === "lime"
+      ? "border-lime-300/20 bg-lime-300/[0.06] text-lime-100"
+      : tone === "amber"
+        ? "border-amber-300/20 bg-amber-300/[0.06] text-amber-100"
+        : "border-cyan-300/20 bg-cyan-300/[0.06] text-cyan-100";
+  const visibleItems = items.slice(0, 2);
+
+  return (
+    <div className={`rounded-2xl border p-3 ${toneClassName}`}>
+      <p className="text-xs font-black">{title}</p>
+      {visibleItems.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-xs leading-5 text-zinc-300">
+          {visibleItems.map((item, index) => (
+            <li key={`${title}-${index}-${item}`}>- {item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs leading-5 text-zinc-500">暂无长期记忆</p>
       )}
     </div>
   );
@@ -1322,7 +1610,11 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
             } Mock`}
             feedback={conversation.agent_trace.map(
               (item) =>
-                `${item.turn}. ${translateRole(item.role)} / ${item.node} / ${item.mode.toUpperCase()}`,
+                `${item.turn}. ${translateRole(item.role)} / ${item.node} / ${item.mode.toUpperCase()}${
+                  typeof item.memory_context_count === "number" ? ` / Memory ${item.memory_context_count}` : ""
+                }${
+                  item.route_reason ? ` / ${item.route_reason}` : ""
+                }`,
             )}
           />
           <MetaPanel

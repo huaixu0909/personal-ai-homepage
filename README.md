@@ -151,9 +151,11 @@ Multi-Agent Demo 支持：
 - 质量评分查看
 - 数据集搜索、筛选、分页
 - 按当前筛选条件导出 JSONL
-- Persona 池、Persona 表现统计和最近记忆展示
-- LangGraph 工作流节点展示
+- Persona 池、Persona 表现统计和 Agent 长期记忆展示
+- LangGraph 条件路由节点与 Agent Memory 使用情况展示
+- 批量生成任务队列提交、进度轮询和任务历史展示
 - 独立 Agent 节点执行轨迹展示
+- 每个 Agent 节点的 route_reason 展示
 
 ## 本地验收清单
 
@@ -178,6 +180,6 @@ git@github.com:huaixu0909/multi-agent-data-factory.git
 
 - Multi-Agent Data Factory 接入 Persona Generator
 - Multi-Agent Data Factory 强化 Persona 演化策略
-- Multi-Agent Data Factory 强化 LangGraph 条件路由和更细粒度 Agent 节点
+- Multi-Agent Data Factory 强化 Persona Generator、批量生成任务队列和数据集版本管理
 - Multi-Agent Data Factory 增加数据集版本管理
 - RAG 系统继续优化检索质量和引用体验

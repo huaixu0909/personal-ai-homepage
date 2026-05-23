@@ -24,7 +24,7 @@ export default function MultiAgentDataFactoryProjectPage() {
       </header>
 
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
-        <p className="mb-4 text-sm font-medium text-[#ecd6a7]">Project 02 / v1.1</p>
+        <p className="mb-4 text-sm font-medium text-[#ecd6a7]">Project 02 / v1.5</p>
         <h1 className="font-display max-w-4xl text-4xl font-bold">
           Multi-Agent Synthetic Data Factory
         </h1>
@@ -36,14 +36,14 @@ export default function MultiAgentDataFactoryProjectPage() {
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
             href="/demos/multi-agent-data-factory"
-            className="rounded-xl bg-zinc-100 px-5 py-3 text-sm font-medium text-zinc-950"
+            className="rounded-xl border border-[#ecd6a7]/70 bg-[#ecd6a7] px-5 py-3 text-sm font-bold !text-[#10151d] shadow-[0_12px_30px_rgba(236,214,167,0.16)] transition hover:bg-[#f7e7bd]"
           >
             打开本地 Demo
           </Link>
           <a
             href={githubUrl}
             target="_blank"
-            className="rounded-xl border border-zinc-500 px-5 py-3 text-sm font-medium text-zinc-100"
+            className="rounded-xl border border-[#ecd6a7]/35 bg-[#ecd6a7]/10 px-5 py-3 text-sm font-bold !text-[#f5ead2] transition hover:border-[#ecd6a7]/70 hover:bg-[#ecd6a7]/16"
           >
             查看 GitHub
           </a>
@@ -64,6 +64,9 @@ export default function MultiAgentDataFactoryProjectPage() {
               <li>v0.9 新增 Persona 池，记录使用次数、平均分、权重和最近记忆。</li>
               <li>v1.0 接入 LangGraph StateGraph，显式记录生成节点和评分节点。</li>
               <li>v1.1 将角色升级为独立 Agent 节点，每个节点只生成自己当前轮的一条发言。</li>
+              <li>v1.2 新增条件路由，不同输入会触发不同 Agent 出场路径和提前结束。</li>
+              <li>v1.3 新增 Agent Memory，生成前读取长期记忆，生成后沉淀成功经验、失败教训和策略建议。</li>
+              <li>v1.5 新增批量生成任务队列，支持提交后台 Job、查询进度并追踪生成的 conversation。</li>
               <li>支持按当前筛选条件导出 JSONL 训练数据。</li>
             </ul>
           </div>
@@ -75,7 +78,7 @@ export default function MultiAgentDataFactoryProjectPage() {
               <li>DeepSeek / OpenAI-compatible Chat Completions。</li>
               <li>Scenario 架构下的 Agent Simulator 与 Quality Scorer。</li>
               <li>Next.js 多场景 Demo 控制台。</li>
-              <li>后续强化条件路由、Persona Generator 和数据集版本管理。</li>
+              <li>后续强化 Persona Generator、数据集版本管理和质量评估增强。</li>
             </ul>
           </div>
         </div>
@@ -84,15 +87,15 @@ export default function MultiAgentDataFactoryProjectPage() {
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-14">
         <h2 className="text-2xl font-bold">当前开发状态</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-300">
-          当前版本是 v1.1，本质是一条可运行的多场景数据生产闭环：输入场景素材，由 Scenario 识别问题线索，
+          当前版本是 v1.5，本质是一条可运行的多场景数据生产闭环：输入场景素材，由 Scenario 识别问题线索，
           从 Persona 池选择角色，优先调用 DeepSeek 生成中文多 Agent 对话，随后由质量评分器计算分数、保存到 SQLite，
           并回写 Persona 的历史表现、权重和记忆。生成过程已由 LangGraph StateGraph 编排，角色已经升级为独立 Agent 节点，
-          接口会返回 workflow_engine、workflow_steps 和 agent_trace。
+          并通过条件路由动态决定下一个出场 Agent。每个 Agent 生成前会读取自己的长期记忆，同时可以通过 /api/jobs 提交批量生成任务，后台持续写入 conversation、更新 Persona Memory 并返回任务进度。
         </p>
 
         <h2 className="mt-10 text-2xl font-bold">后续计划</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-300">
-          下一步可以加入条件路由、Persona Generator、Prompt 模板管理和数据集版本管理，
+          下一步可以加入 Persona Generator、Prompt 模板管理、数据集版本管理和更强的质量评估，
           让系统从可运行 Demo 继续升级为更完整的 AI Native 数据工厂。
         </p>
       </section>

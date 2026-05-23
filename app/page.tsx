@@ -21,9 +21,9 @@ const projects = [
     id: "02",
     name: "Multi-Agent Data Factory",
     cnName: "多 Agent 数据合成平台",
-    status: "v1.1 / Agent Nodes",
+    status: "v1.5 / Batch Queue",
     description:
-      "通过独立 Agent 节点逐轮生成中文对话，并支持数据搜索、筛选、分页、JSONL 导出和 Persona 记忆演化。",
+      "通过条件路由调度独立 Agent 节点生成中文对话，并支持长期记忆、批量任务队列、数据搜索、分页、JSONL 导出和 Persona 演化。",
     stack: ["FastAPI", "DeepSeek", "Scenario", "SQLite"],
     demoHref: "/demos/multi-agent-data-factory",
     detailHref: "/projects/multi-agent-data-factory",
