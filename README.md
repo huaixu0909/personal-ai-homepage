@@ -1,14 +1,14 @@
 # 曾见云霞满天 AI Lab
 
-这是一个面向大模型应用开发、AI Agent、RAG 和 AI 工程化方向的个人作品集网站。当前主站用于展示核心项目、项目详情页和本地可交互 Demo。
+这是一个面向大模型应用开发、AI Agent、RAG 和 AI 工程化方向的个人作品集网站。当前主站用于展示核心项目、项目详情页和本地可交互产品页。
 
 ## 当前功能
 
 - 首页作品集展示
 - RAG Agent System 项目详情页
 - Multi-Agent Data Factory 项目详情页
-- RAG Agent 可交互 Demo
-- Multi-Agent Data Factory 可交互 Demo
+- RAG Agent 可交互产品页
+- Multi-Agent Data Factory 可交互产品页
 - GitHub 仓库跳转入口
 - 本地多服务联调
 
@@ -25,8 +25,8 @@
 /                                      首页
 /projects/rag-agent                    RAG Agent 项目详情页
 /projects/multi-agent-data-factory     Multi-Agent Data Factory 项目详情页
-/demos/rag-agent                       RAG Agent 可交互 Demo
-/demos/multi-agent-data-factory        Multi-Agent Data Factory 可交互 Demo
+/products/rag-agent                       RAG Agent 可交互产品页
+/products/multi-agent-data-factory        Multi-Agent Data Factory 可交互产品页
 ```
 
 ## 本地运行主页
@@ -97,14 +97,14 @@ npm.cmd run dev
 http://localhost:3000
 ```
 
-## Demo 与后端接口关系
+## 产品页面与后端接口关系
 
-### RAG Agent Demo
+### RAG Agent 产品页
 
 前端页面：
 
 ```text
-http://localhost:3000/demos/rag-agent
+http://localhost:3000/products/rag-agent
 ```
 
 主要后端接口：
@@ -120,12 +120,12 @@ POST   http://localhost:8000/api/search
 POST   http://localhost:8000/api/chat
 ```
 
-### Multi-Agent Data Factory Demo
+### Multi-Agent Data Factory 产品页
 
 前端页面：
 
 ```text
-http://localhost:3000/demos/multi-agent-data-factory
+http://localhost:3000/products/multi-agent-data-factory
 ```
 
 主要后端接口：
@@ -142,7 +142,7 @@ GET  http://localhost:8001/api/datasets/export.jsonl
 GET  http://localhost:8001/api/personas
 ```
 
-Multi-Agent Demo 支持：
+Multi-Agent 产品页 支持：
 
 - 三场景生成控制台
 - 中文 Agent 角色展示
@@ -154,6 +154,9 @@ Multi-Agent Demo 支持：
 - Persona 池、Persona 表现统计和 Agent 长期记忆展示
 - LangGraph 条件路由节点与 Agent Memory 使用情况展示
 - 批量生成任务队列提交、进度轮询和任务历史展示
+- 数据集版本创建、版本列表、版本导出和版本删除
+- 增强质量评估展示：Quality Report、多 Judge 投票、维度诊断和改进建议
+- 数据去重与多样性控制展示：duplicate level、content hash、similarity score 和 dataset diversity stats
 - 独立 Agent 节点执行轨迹展示
 - 每个 Agent 节点的 route_reason 展示
 
@@ -161,12 +164,12 @@ Multi-Agent Demo 支持：
 
 - `http://localhost:3000` 可以打开首页
 - 首页项目卡片可以跳转到详情页
-- 首页项目卡片可以跳转到 Demo 页面
-- `http://localhost:3000/demos/rag-agent` 可以完成 RAG 知识库问答
-- `http://localhost:3000/demos/multi-agent-data-factory` 可以生成中文 Code Review、客服投诉和技术面试多 Agent 对话
-- Multi-Agent Demo 可以搜索、筛选、翻页和导出 JSONL
-- Multi-Agent Demo 可以展示 LangGraph workflow_engine、workflow_steps 和 agent_trace
-- 后端未启动时，Demo 页面能显示清晰错误提示
+- 首页项目卡片可以跳转到 产品页面
+- `http://localhost:3000/products/rag-agent` 可以完成 RAG 知识库问答
+- `http://localhost:3000/products/multi-agent-data-factory` 可以生成中文 Code Review、客服投诉和技术面试多 Agent 对话
+- Multi-Agent 产品页 可以搜索、筛选、翻页和导出 JSONL
+- Multi-Agent 产品页 可以展示 LangGraph workflow_engine、workflow_steps 和 agent_trace
+- 后端未启动时，产品页面能显示清晰错误提示
 
 ## 关联仓库
 
@@ -180,6 +183,5 @@ git@github.com:huaixu0909/multi-agent-data-factory.git
 
 - Multi-Agent Data Factory 接入 Persona Generator
 - Multi-Agent Data Factory 强化 Persona 演化策略
-- Multi-Agent Data Factory 强化 Persona Generator、批量生成任务队列和数据集版本管理
-- Multi-Agent Data Factory 增加数据集版本管理
+- Multi-Agent Data Factory 继续强化 Persona Generator、Prompt 模板管理和数据闭环演化
 - RAG 系统继续优化检索质量和引用体验

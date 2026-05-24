@@ -42,6 +42,38 @@ type QualityScores = {
   final_score: number;
 };
 
+type QualityReport = {
+  grade: string;
+  decision: string;
+  pass_threshold: number;
+  judge_votes: Array<{
+    judge: string;
+    vote: string;
+    reason: string;
+  }>;
+  dimension_diagnostics: Array<{
+    dimension: string;
+    label: string;
+    score: number;
+    level: string;
+    reason: string;
+  }>;
+  strengths: string[];
+  weaknesses: string[];
+  improvement_actions: string[];
+  rejection_reasons: string[];
+};
+
+type DiversityReport = {
+  content_hash: string;
+  duplicate_level: string;
+  duplicate_of?: string | null;
+  similarity_score: number;
+  uniqueness_score: number;
+  recommendation: string;
+  signals: string[];
+};
+
 type ConversationRecord = {
   conversation_id: string;
   task_type: string;
@@ -63,6 +95,11 @@ type ConversationRecord = {
   scoring_model?: string | null;
   scoring_error?: string | null;
   score_feedback: string[];
+  quality_report?: QualityReport;
+  content_hash?: string | null;
+  duplicate_of?: string | null;
+  similarity_score?: number;
+  diversity_report?: DiversityReport;
   workflow_engine: string;
   workflow_steps: string[];
   agent_trace: Array<{
@@ -145,6 +182,26 @@ type BatchJobListResponse = {
   total: number;
 };
 
+type DatasetVersionRecord = {
+  version_id: string;
+  name: string;
+  description?: string | null;
+  filters: Record<string, unknown>;
+  conversation_ids: string[];
+  total: number;
+  accepted: number;
+  average_score: number;
+  duplicate_count: number;
+  duplicate_rate: number;
+  diversity_score: number;
+  created_at: string;
+};
+
+type DatasetVersionListResponse = {
+  items: DatasetVersionRecord[];
+  total: number;
+};
+
 type Template = {
   label: string;
   apply: () => void;
@@ -196,7 +253,7 @@ const scoreLabels: Array<[keyof QualityScores, string]> = [
   ["safety", "安全性"],
 ];
 
-export default function MultiAgentDataFactoryDemoPage() {
+export default function MultiAgentDataFactoryProductPage() {
   const [scenario, setScenario] = useState<ScenarioType>("code_review");
   const [scenarios, setScenarios] = useState<ScenarioDescriptor[]>([]);
   const [history, setHistory] = useState<ConversationRecord[]>([]);
@@ -210,6 +267,11 @@ export default function MultiAgentDataFactoryDemoPage() {
   const [jobsLoading, setJobsLoading] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchTotal, setBatchTotal] = useState(5);
+  const [datasetVersions, setDatasetVersions] = useState<DatasetVersionRecord[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionName, setVersionName] = useState("");
+  const [versionDescription, setVersionDescription] = useState("");
+  const [deletingVersionId, setDeletingVersionId] = useState("");
 
   const [codeDiff, setCodeDiff] = useState(`+ query = f"SELECT * FROM users WHERE id = {user_id}"
 + cursor.execute(query)
@@ -234,7 +296,7 @@ export default function MultiAgentDataFactoryDemoPage() {
   const [interviewTopic, setInterviewTopic] = useState("RAG");
   const [interviewDifficulty, setInterviewDifficulty] = useState("medium");
   const [candidateProfile, setCandidateProfile] = useState(
-    "候选人有 Python、FastAPI 和本地 RAG Demo 经验，了解向量检索和 DeepSeek API，但生产级监控、评估和故障恢复经验较少。",
+    "候选人有 Python、FastAPI 和本地 RAG 项目经验，了解向量检索和 DeepSeek API，但生产级监控、评估和故障恢复经验较少。",
   );
   const [interviewContext, setInterviewContext] = useState(
     "希望考察候选人是否真的理解 RAG 的检索、chunking、相似度阈值、上下文拼接和幻觉控制，而不是只会描述概念。",
@@ -250,6 +312,7 @@ export default function MultiAgentDataFactoryDemoPage() {
   const [conversation, setConversation] = useState<ConversationRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [deletingConversationId, setDeletingConversationId] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
 
@@ -271,12 +334,20 @@ export default function MultiAgentDataFactoryDemoPage() {
   useEffect(() => {
     const loadStatus = async () => {
       try {
-        const [healthResponse, scenariosResponse, historyResponse, personasResponse, jobsResponse] = await Promise.all([
+        const [
+          healthResponse,
+          scenariosResponse,
+          historyResponse,
+          personasResponse,
+          jobsResponse,
+          versionsResponse,
+        ] = await Promise.all([
           fetch(`${apiBaseUrl}/health`),
           fetch(`${apiBaseUrl}/api/scenarios`),
           fetch(`${apiBaseUrl}/api/conversations?scenario=code_review&page=1&page_size=${pageSize}`),
           fetch(`${apiBaseUrl}/api/personas`),
           fetch(`${apiBaseUrl}/api/jobs`),
+          fetch(`${apiBaseUrl}/api/datasets/versions`),
         ]);
         setApiOnline(healthResponse.ok);
         if (scenariosResponse.ok) {
@@ -298,6 +369,10 @@ export default function MultiAgentDataFactoryDemoPage() {
           const data = (await jobsResponse.json()) as BatchJobListResponse;
           setJobs(data.items);
           setActiveJob(data.items.find((item) => item.status === "running" || item.status === "queued") ?? data.items[0] ?? null);
+        }
+        if (versionsResponse.ok) {
+          const data = (await versionsResponse.json()) as DatasetVersionListResponse;
+          setDatasetVersions(data.items);
         }
       } catch {
         setApiOnline(false);
@@ -410,7 +485,7 @@ export default function MultiAgentDataFactoryDemoPage() {
           setCandidateLevel("中级");
           setInterviewTopic("RAG");
           setInterviewDifficulty("medium");
-          setCandidateProfile("候选人有 Python、FastAPI 和本地 RAG Demo 经验，了解向量检索和 DeepSeek API，但生产级经验较少。");
+          setCandidateProfile("候选人有 Python、FastAPI 和本地 RAG 项目经验，了解向量检索和 DeepSeek API，但生产级经验较少。");
           setInterviewContext("重点考察检索、chunking、相似度阈值、上下文拼接和幻觉控制。");
         },
       },
@@ -421,7 +496,7 @@ export default function MultiAgentDataFactoryDemoPage() {
           setCandidateLevel("高级");
           setInterviewTopic("LangGraph 多 Agent 工作流");
           setInterviewDifficulty("high");
-          setCandidateProfile("候选人做过 RAG 和工具调用 Demo，但还没有完整落地过多 Agent 状态机。");
+          setCandidateProfile("候选人做过 RAG 和工具调用项目，但还没有完整落地过多 Agent 状态机。");
           setInterviewContext("重点考察状态管理、工具失败恢复、长期记忆和多 Agent 协作边界。");
         },
       },
@@ -504,6 +579,104 @@ export default function MultiAgentDataFactoryDemoPage() {
       setApiOnline(false);
     } finally {
       setJobsLoading(false);
+    }
+  }
+
+  async function loadDatasetVersions() {
+    setVersionsLoading(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/datasets/versions`);
+      if (!response.ok) throw new Error("dataset versions failed");
+      const data = (await response.json()) as DatasetVersionListResponse;
+      setDatasetVersions(data.items);
+      setApiOnline(true);
+    } catch {
+      setApiOnline(false);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }
+
+  async function createDatasetVersion() {
+    const name = versionName.trim() || `dataset-${new Date().toISOString().slice(0, 10)}`;
+    setVersionsLoading(true);
+    setError("");
+    try {
+      const params = buildDatasetParams(1);
+      const payload = {
+        name,
+        description: versionDescription.trim() || undefined,
+        scenario: params.get("scenario") || undefined,
+        accepted:
+          params.get("accepted") === null
+            ? undefined
+            : params.get("accepted") === "true",
+        min_score: params.get("min_score") ? Number(params.get("min_score")) : undefined,
+        q: params.get("q") || undefined,
+      };
+      const response = await fetch(`${apiBaseUrl}/api/datasets/versions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(`Create dataset version failed: ${response.status}`);
+      const data = (await response.json()) as DatasetVersionRecord;
+      setDatasetVersions((items) => [data, ...items.filter((item) => item.version_id !== data.version_id)]);
+      setVersionName("");
+      setVersionDescription("");
+      setApiOnline(true);
+    } catch (versionError) {
+      setApiOnline(false);
+      setError(versionError instanceof Error ? versionError.message : "创建数据集版本失败。");
+    } finally {
+      setVersionsLoading(false);
+    }
+  }
+
+  async function deleteDatasetVersion(version: DatasetVersionRecord) {
+    const confirmed = window.confirm(`确定删除数据集版本 ${version.name} 吗？这不会删除原始 conversation。`);
+    if (!confirmed) return;
+
+    setDeletingVersionId(version.version_id);
+    setError("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/datasets/versions/${version.version_id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(`Delete dataset version failed: ${response.status}`);
+      setDatasetVersions((items) => items.filter((item) => item.version_id !== version.version_id));
+      setApiOnline(true);
+    } catch (versionError) {
+      setApiOnline(false);
+      setError(versionError instanceof Error ? versionError.message : "删除数据集版本失败。");
+    } finally {
+      setDeletingVersionId("");
+    }
+  }
+
+  async function deleteConversationItem(item: ConversationRecord) {
+    const confirmed = window.confirm(`确定删除数据 ${item.conversation_id} 吗？删除后不会出现在筛选、搜索和导出结果中。`);
+    if (!confirmed) return;
+
+    setDeletingConversationId(item.conversation_id);
+    setError("");
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/conversations/${item.conversation_id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
+      if (conversation?.conversation_id === item.conversation_id) {
+        setConversation(null);
+      }
+      await loadHistory(historyPage);
+      await loadJobs();
+      await loadDatasetVersions();
+      setApiOnline(true);
+    } catch (deleteError) {
+      setApiOnline(false);
+      setError(deleteError instanceof Error ? deleteError.message : "删除数据失败。");
+    } finally {
+      setDeletingConversationId("");
     }
   }
 
@@ -608,7 +781,7 @@ export default function MultiAgentDataFactoryDemoPage() {
   }
 
   return (
-    <main className="lab-demo-theme min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
+    <main className="lab-product-theme min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
       <ParticleField />
       <div className="pointer-events-none fixed inset-0 z-0 opacity-40 [background-image:linear-gradient(rgba(103,232,249,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.12)_1px,transparent_1px)] [background-size:56px_56px]" />
       <div className="pointer-events-none fixed inset-0 z-0 [background-image:radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_78%_12%,rgba(163,230,53,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(5,7,11,0.92))]" />
@@ -657,7 +830,7 @@ export default function MultiAgentDataFactoryDemoPage() {
                 {conversation.llm_provider ? ` / ${conversation.llm_provider}` : ""}
                 {conversation.llm_model ? ` / ${conversation.llm_model}` : ""}
                 <br />
-                SCORE / {conversation.scoring_mode === "llm_judge" ? "LLM JUDGE" : "HEURISTIC"}
+                SCORE / {formatScoringMode(conversation.scoring_mode)}
               </div>
             ) : null}
           </div>
@@ -825,7 +998,19 @@ export default function MultiAgentDataFactoryDemoPage() {
               onSearch={() => loadHistory(1)}
               onPageChange={loadHistory}
               onSelect={(item) => setConversation(item)}
+              onDelete={deleteConversationItem}
+              deletingConversationId={deletingConversationId}
               exportUrl={exportUrl}
+              versionName={versionName}
+              setVersionName={setVersionName}
+              versionDescription={versionDescription}
+              setVersionDescription={setVersionDescription}
+              versions={datasetVersions}
+              versionsLoading={versionsLoading}
+              deletingVersionId={deletingVersionId}
+              onCreateVersion={createDatasetVersion}
+              onRefreshVersions={loadDatasetVersions}
+              onDeleteVersion={deleteDatasetVersion}
             />
             <PersonaPoolPanel
               personas={personas}
@@ -881,6 +1066,14 @@ function formatWorkflowEngine(engine: string) {
   if (engine === "langgraph") return "LangGraph";
   if (engine === "legacy") return "Legacy";
   return engine;
+}
+
+function formatScoringMode(mode: string) {
+  if (mode === "enhanced_multi_judge") return "Enhanced Multi-Judge";
+  if (mode === "heuristic_multi_judge") return "Heuristic Multi-Judge";
+  if (mode === "llm_judge") return "LLM-as-a-Judge";
+  if (mode === "heuristic") return "规则评分";
+  return mode;
 }
 
 function inputClassName() {
@@ -1266,7 +1459,19 @@ function DatasetPanel({
   onSearch,
   onPageChange,
   onSelect,
+  onDelete,
+  deletingConversationId,
   exportUrl,
+  versionName,
+  setVersionName,
+  versionDescription,
+  setVersionDescription,
+  versions,
+  versionsLoading,
+  deletingVersionId,
+  onCreateVersion,
+  onRefreshVersions,
+  onDeleteVersion,
 }: {
   history: ConversationRecord[];
   loading: boolean;
@@ -1284,7 +1489,19 @@ function DatasetPanel({
   onSearch: () => void;
   onPageChange: (page: number) => void;
   onSelect: (item: ConversationRecord) => void;
+  onDelete: (item: ConversationRecord) => void;
+  deletingConversationId: string;
   exportUrl: string;
+  versionName: string;
+  setVersionName: (value: string) => void;
+  versionDescription: string;
+  setVersionDescription: (value: string) => void;
+  versions: DatasetVersionRecord[];
+  versionsLoading: boolean;
+  deletingVersionId: string;
+  onCreateVersion: () => void;
+  onRefreshVersions: () => void;
+  onDeleteVersion: (version: DatasetVersionRecord) => void;
 }) {
   return (
     <div className="mt-5 rounded-3xl border border-white/10 bg-black/25 p-4">
@@ -1363,29 +1580,129 @@ function DatasetPanel({
         </span>
       </div>
 
+      <div className="mt-4 rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.04] p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-100">Dataset Versions</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">
+              Save the current filter result as an immutable conversation id snapshot.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onRefreshVersions}
+            className="rounded-full border border-cyan-300/40 px-3 py-1.5 text-xs font-black text-cyan-100"
+          >
+            {versionsLoading ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+          <input
+            value={versionName}
+            onChange={(event) => setVersionName(event.target.value)}
+            placeholder="Version name"
+            className={inputClassName()}
+          />
+          <input
+            value={versionDescription}
+            onChange={(event) => setVersionDescription(event.target.value)}
+            placeholder="Description"
+            className={inputClassName()}
+          />
+          <button
+            type="button"
+            onClick={onCreateVersion}
+            disabled={versionsLoading}
+            className="rounded-full bg-lime-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+          >
+            Create Version
+          </button>
+        </div>
+
+        {versions.length > 0 ? (
+          <div className="mt-3 grid gap-2">
+            {versions.slice(0, 5).map((version) => (
+              <article key={version.version_id} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-bold text-zinc-100">{version.name}</p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {version.version_id} / {version.total} rows / avg {version.average_score.toFixed(2)} / {formatTime(version.created_at)}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      duplicates {version.duplicate_count} / rate {(version.duplicate_rate * 100).toFixed(0)}% / diversity {(version.diversity_score * 100).toFixed(0)}%
+                    </p>
+                    {version.description ? (
+                      <p className="mt-1 text-xs leading-5 text-zinc-400">{version.description}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={`${apiBaseUrl}/api/datasets/versions/${version.version_id}/export.jsonl`}
+                      target="_blank"
+                      className="rounded-full border border-lime-300/40 px-3 py-1.5 text-xs font-black text-lime-100"
+                    >
+                      Export
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteVersion(version)}
+                      disabled={deletingVersionId === version.version_id}
+                      className="rounded-full border border-red-300/35 px-3 py-1.5 text-xs font-black text-red-200 transition hover:border-red-300 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:text-zinc-600"
+                    >
+                      {deletingVersionId === version.version_id ? "Deleting" : "Delete"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="mt-3 rounded-2xl border border-dashed border-white/15 p-4 text-xs text-zinc-500">
+            No dataset versions yet.
+          </p>
+        )}
+      </div>
+
       {history.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {history.map((item) => (
-            <button
+            <article
               key={item.conversation_id}
-              type="button"
-              onClick={() => onSelect(item)}
-              className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-left transition hover:border-cyan-300/40"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 transition hover:border-cyan-300/40"
             >
-              <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-                <span className="font-bold text-zinc-200">{item.conversation_id}</span>
-                <span className={item.accepted ? "text-lime-300" : "text-amber-300"}>
-                  {item.accepted ? "通过" : "待筛"} / {item.scores.final_score.toFixed(2)}
-                </span>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <button type="button" onClick={() => onSelect(item)} className="min-w-0 flex-1 text-left">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <span className="font-bold text-zinc-200">{item.conversation_id}</span>
+                    <span className={item.accepted ? "text-lime-300" : "text-amber-300"}>
+                      {item.accepted ? "\u901a\u8fc7" : "\u5f85\u7b5b"} / {item.scores.final_score.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs text-zinc-500">
+                    <span>{scenarioLabels[item.scenario as ScenarioType] ?? item.scenario}</span>
+                    <span>{formatTime(item.created_at)}</span>
+                    <span>{formatGenerationMode(item.generation_mode)}</span>
+                    <span>{formatWorkflowEngine(item.workflow_engine)}</span>
+                    <span>{formatScoringMode(item.scoring_mode)}</span>
+                    {item.diversity_report ? (
+                      <span className={item.diversity_report.duplicate_level === "unique" ? "text-lime-300" : "text-amber-300"}>
+                        diversity {item.diversity_report.duplicate_level} / sim {(item.similarity_score ?? item.diversity_report.similarity_score).toFixed(2)}
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(item)}
+                  disabled={deletingConversationId === item.conversation_id}
+                  className="rounded-full border border-red-300/35 px-3 py-1.5 text-xs font-black text-red-200 transition hover:border-red-300 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:text-zinc-600"
+                >
+                  {deletingConversationId === item.conversation_id ? "\u5220\u9664\u4e2d" : "\u5220\u9664"}
+                </button>
               </div>
-              <div className="mt-1 flex flex-wrap gap-2 text-xs text-zinc-500">
-                <span>{scenarioLabels[item.scenario as ScenarioType] ?? item.scenario}</span>
-                <span>{formatTime(item.created_at)}</span>
-                <span>{formatGenerationMode(item.generation_mode)}</span>
-                <span>{formatWorkflowEngine(item.workflow_engine)}</span>
-                <span>{item.scoring_mode === "llm_judge" ? "LLM 评分" : "规则评分"}</span>
-              </div>
-            </button>
+            </article>
           ))}
         </div>
       ) : (
@@ -1619,12 +1936,72 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
           />
           <MetaPanel
             title="评分模式"
-            value={`${conversation.scoring_mode === "llm_judge" ? "LLM-as-a-Judge" : "规则评分"}${
+            value={`${formatScoringMode(conversation.scoring_mode)}${
               conversation.scoring_provider ? ` / ${conversation.scoring_provider}` : ""
             }${conversation.scoring_model ? ` / ${conversation.scoring_model}` : ""}`}
             warning={conversation.scoring_error ? `评分回退原因：${conversation.scoring_error}` : ""}
             feedback={conversation.score_feedback}
           />
+          {conversation.quality_report ? (
+            <div className="rounded-2xl border border-lime-300/20 bg-lime-300/[0.06] p-3 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-400">
+                <span>Quality Report</span>
+                <span>
+                  Grade {conversation.quality_report.grade} / {conversation.quality_report.decision.toUpperCase()} / threshold {conversation.quality_report.pass_threshold.toFixed(1)}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <QualityList title="Judge Votes" items={conversation.quality_report.judge_votes.map((vote) => `${vote.judge}: ${vote.vote} - ${vote.reason}`)} />
+                <QualityList
+                  title="Weaknesses"
+                  items={
+                    conversation.quality_report.weaknesses.length
+                      ? conversation.quality_report.weaknesses
+                      : conversation.quality_report.rejection_reasons
+                  }
+                />
+                <QualityList title="Actions" items={conversation.quality_report.improvement_actions} />
+              </div>
+            </div>
+          ) : null}
+          {conversation.diversity_report ? (
+            <div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-3 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-400">
+                <span>Diversity Control</span>
+                <span>
+                  {conversation.diversity_report.duplicate_level} / sim {conversation.diversity_report.similarity_score.toFixed(2)} / unique {conversation.diversity_report.uniqueness_score.toFixed(2)}
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Hash</p>
+                  <p className="mt-2 break-all text-xs leading-5 text-zinc-300">
+                    {conversation.diversity_report.content_hash}
+                  </p>
+                  {conversation.diversity_report.duplicate_of ? (
+                    <p className="mt-2 break-all text-xs leading-5 text-amber-200">
+                      duplicate of {conversation.diversity_report.duplicate_of}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+                  <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Recommendation</p>
+                  <p className="mt-2 text-xs leading-5 text-zinc-300">
+                    {conversation.diversity_report.recommendation}
+                  </p>
+                </div>
+              </div>
+              {conversation.diversity_report.signals.length > 0 ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {conversation.diversity_report.signals.map((signal) => (
+                    <span key={signal} className="rounded-full border border-cyan-300/25 px-2 py-1 text-xs font-bold text-cyan-100">
+                      {signal}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           {scoreLabels.map(([key, label]) => (
             <div key={key} className="rounded-2xl border border-white/10 bg-black/25 p-3">
               <div className="flex justify-between text-xs font-black uppercase tracking-[0.12em] text-zinc-400">
@@ -1639,6 +2016,22 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
               </div>
             </div>
           ))}
+          {conversation.quality_report?.dimension_diagnostics?.length ? (
+            <div className="rounded-2xl border border-white/10 bg-black/25 p-3 sm:col-span-2">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">Dimension Diagnostics</p>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {conversation.quality_report.dimension_diagnostics.map((item) => (
+                  <div key={item.dimension} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <div className="flex items-center justify-between gap-3 text-xs font-black text-zinc-300">
+                      <span>{item.label}</span>
+                      <span>{item.score.toFixed(1)} / {item.level}</span>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-zinc-500">{item.reason}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-white/20 p-8 text-sm text-zinc-400">
@@ -1646,6 +2039,23 @@ function QualityPanel({ conversation }: { conversation: ConversationRecord | nul
         </div>
       )}
     </section>
+  );
+}
+
+function QualityList({ title, items }: { title: string; items: string[] }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/25 p-3">
+      <p className="text-xs font-black uppercase tracking-[0.12em] text-zinc-400">{title}</p>
+      {items.length > 0 ? (
+        <ul className="mt-2 space-y-1 text-xs leading-5 text-zinc-300">
+          {items.slice(0, 4).map((item, index) => (
+            <li key={`${title}-${index}-${item}`}>- {item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-xs leading-5 text-zinc-500">暂无明显风险。</p>
+      )}
+    </div>
   );
 }
 

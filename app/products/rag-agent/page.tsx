@@ -244,7 +244,7 @@ function uploadStageIndex(item: UploadQueueItem) {
   return index >= 0 ? index : 0;
 }
 
-export default function RagAgentDemoPage() {
+export default function RagAgentProductPage() {
   const [question, setQuestion] = useState(sampleQuestion);
   const [topK, setTopK] = useState(5);
   const [scoreThreshold, setScoreThreshold] = useState(0.2);
@@ -595,7 +595,7 @@ export default function RagAgentDemoPage() {
   const visibleDocuments = documents;
 
   return (
-    <main className="lab-demo-theme min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
+    <main className="lab-product-theme min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
       <ParticleField />
       <div className="pointer-events-none fixed inset-0 z-0 opacity-40 [background-image:linear-gradient(rgba(103,232,249,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(103,232,249,0.12)_1px,transparent_1px)] [background-size:56px_56px]" />
       <div className="pointer-events-none fixed inset-0 z-0 [background-image:radial-gradient(circle_at_30%_20%,rgba(34,211,238,0.16),transparent_32%),radial-gradient(circle_at_78%_12%,rgba(163,230,53,0.12),transparent_28%),linear-gradient(180deg,transparent,rgba(5,7,11,0.92))]" />

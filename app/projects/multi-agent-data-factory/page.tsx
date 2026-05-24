@@ -15,7 +15,7 @@ export default function MultiAgentDataFactoryProjectPage() {
           </Link>
           <div className="flex gap-5 text-sm text-zinc-400">
             <Link href="/#projects">Projects</Link>
-            <Link href="/demos/multi-agent-data-factory">Demo</Link>
+            <Link href="/products/multi-agent-data-factory">Product</Link>
             <a href={githubUrl} target="_blank">
               GitHub
             </a>
@@ -24,7 +24,7 @@ export default function MultiAgentDataFactoryProjectPage() {
       </header>
 
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-20">
-        <p className="mb-4 text-sm font-medium text-[#ecd6a7]">Project 02 / v1.5</p>
+        <p className="mb-4 text-sm font-medium text-[#ecd6a7]">Project 02 / v1.8</p>
         <h1 className="font-display max-w-4xl text-4xl font-bold">
           Multi-Agent Synthetic Data Factory
         </h1>
@@ -35,10 +35,10 @@ export default function MultiAgentDataFactoryProjectPage() {
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/demos/multi-agent-data-factory"
+            href="/products/multi-agent-data-factory"
             className="rounded-xl border border-[#ecd6a7]/70 bg-[#ecd6a7] px-5 py-3 text-sm font-bold !text-[#10151d] shadow-[0_12px_30px_rgba(236,214,167,0.16)] transition hover:bg-[#f7e7bd]"
           >
-            打开本地 Demo
+            打开产品控制台
           </Link>
           <a
             href={githubUrl}
@@ -67,6 +67,9 @@ export default function MultiAgentDataFactoryProjectPage() {
               <li>v1.2 新增条件路由，不同输入会触发不同 Agent 出场路径和提前结束。</li>
               <li>v1.3 新增 Agent Memory，生成前读取长期记忆，生成后沉淀成功经验、失败教训和策略建议。</li>
               <li>v1.5 新增批量生成任务队列，支持提交后台 Job、查询进度并追踪生成的 conversation。</li>
+              <li>v1.6 新增数据集版本管理，支持把当前筛选结果固化为版本并按版本导出 JSONL。</li>
+              <li>v1.7 新增增强质量评估，返回 Quality Report、多 Judge 投票、维度诊断和改进建议。</li>
+              <li>v1.8 新增数据去重与多样性控制，返回 content_hash、duplicate_of、similarity_score 和 diversity_report。</li>
               <li>支持按当前筛选条件导出 JSONL 训练数据。</li>
             </ul>
           </div>
@@ -77,8 +80,8 @@ export default function MultiAgentDataFactoryProjectPage() {
               <li>SQLite 本地 conversation storage。</li>
               <li>DeepSeek / OpenAI-compatible Chat Completions。</li>
               <li>Scenario 架构下的 Agent Simulator 与 Quality Scorer。</li>
-              <li>Next.js 多场景 Demo 控制台。</li>
-              <li>后续强化 Persona Generator、数据集版本管理和质量评估增强。</li>
+              <li>Next.js 多场景 产品控制台。</li>
+              <li>后续强化 Persona Generator、数据多样性控制和相似样本去重。</li>
             </ul>
           </div>
         </div>
@@ -87,16 +90,16 @@ export default function MultiAgentDataFactoryProjectPage() {
       <section className="relative z-10 mx-auto max-w-6xl px-6 py-14">
         <h2 className="text-2xl font-bold">当前开发状态</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-300">
-          当前版本是 v1.5，本质是一条可运行的多场景数据生产闭环：输入场景素材，由 Scenario 识别问题线索，
+          当前版本是 v1.8，本质是一条可运行的多场景数据生产闭环：输入场景素材，由 Scenario 识别问题线索，
           从 Persona 池选择角色，优先调用 DeepSeek 生成中文多 Agent 对话，随后由质量评分器计算分数、保存到 SQLite，
           并回写 Persona 的历史表现、权重和记忆。生成过程已由 LangGraph StateGraph 编排，角色已经升级为独立 Agent 节点，
-          并通过条件路由动态决定下一个出场 Agent。每个 Agent 生成前会读取自己的长期记忆，同时可以通过 /api/jobs 提交批量生成任务，后台持续写入 conversation、更新 Persona Memory 并返回任务进度。
+          并通过条件路由动态决定下一个出场 Agent。每个 Agent 生成前会读取自己的长期记忆，同时可以通过 /api/jobs 提交批量生成任务，通过 /api/datasets/versions 固化版本快照，并用 quality_report 解释样本质量。
         </p>
 
         <h2 className="mt-10 text-2xl font-bold">后续计划</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-300">
-          下一步可以加入 Persona Generator、Prompt 模板管理、数据集版本管理和更强的质量评估，
-          让系统从可运行 Demo 继续升级为更完整的 AI Native 数据工厂。
+          下一步可以加入 Persona Generator、Prompt 模板管理、数据多样性控制和相似样本去重，
+          让系统从可运行产品页 继续升级为更完整的 AI Native 数据工厂。
         </p>
       </section>
     </main>

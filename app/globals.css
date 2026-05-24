@@ -96,147 +96,147 @@ pre {
   overflow: hidden;
 }
 
-main:not(.lab-demo-theme):not(.project-detail-theme) article,
-main:not(.lab-demo-theme):not(.project-detail-theme) .inline-flex.border,
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-black/30"],
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-black/35"],
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-white/5"],
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-cyan-300/10"],
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-[#08111b]/88"] {
+main:not(.lab-product-theme):not(.project-detail-theme) article,
+main:not(.lab-product-theme):not(.project-detail-theme) .inline-flex.border,
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-black/30"],
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-black/35"],
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-white/5"],
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-cyan-300/10"],
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-[#08111b]/88"] {
   border-radius: var(--radius-panel);
   overflow: hidden;
 }
 
-main:not(.lab-demo-theme):not(.project-detail-theme) a.border,
-main:not(.lab-demo-theme):not(.project-detail-theme) span.border,
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-cyan-300"].px-2 {
+main:not(.lab-product-theme):not(.project-detail-theme) a.border,
+main:not(.lab-product-theme):not(.project-detail-theme) span.border,
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-cyan-300"].px-2 {
   border-radius: var(--radius-pill);
 }
 
-main:not(.lab-demo-theme):not(.project-detail-theme) article,
-main:not(.lab-demo-theme):not(.project-detail-theme) [class*="bg-[#08111b]/88"] {
+main:not(.lab-product-theme):not(.project-detail-theme) article,
+main:not(.lab-product-theme):not(.project-detail-theme) [class*="bg-[#08111b]/88"] {
   box-shadow: var(--shadow-glow-cyan);
 }
 
-.lab-demo-theme {
+.lab-product-theme {
   color: #f4f4f5;
 }
 
-.lab-demo-theme .bg-white,
-.lab-demo-theme .bg-zinc-50,
-.lab-demo-theme .bg-\[\#f6f3ec\],
-.lab-demo-theme .bg-blue-50 {
+.lab-product-theme .bg-white,
+.lab-product-theme .bg-zinc-50,
+.lab-product-theme .bg-\[\#f6f3ec\],
+.lab-product-theme .bg-blue-50 {
   background-color: rgba(8, 17, 27, 0.9) !important;
 }
 
-.lab-demo-theme .bg-zinc-950,
-.lab-demo-theme .bg-black,
-.lab-demo-theme pre {
+.lab-product-theme .bg-zinc-950,
+.lab-product-theme .bg-black,
+.lab-product-theme pre {
   background-color: rgba(2, 6, 12, 0.92) !important;
 }
 
-.lab-demo-theme section,
-.lab-demo-theme article,
-.lab-demo-theme .border,
-.lab-demo-theme .border-t,
-.lab-demo-theme .border-b,
-.lab-demo-theme .border-l,
-.lab-demo-theme .border-r {
+.lab-product-theme section,
+.lab-product-theme article,
+.lab-product-theme .border,
+.lab-product-theme .border-t,
+.lab-product-theme .border-b,
+.lab-product-theme .border-l,
+.lab-product-theme .border-r {
   border-color: rgba(103, 232, 249, 0.28) !important;
 }
 
-.lab-demo-theme section,
-.lab-demo-theme article {
+.lab-product-theme section,
+.lab-product-theme article {
   border-radius: var(--radius-panel);
   overflow: hidden;
   box-shadow: var(--shadow-glow-cyan);
 }
 
-.lab-demo-theme section > div.border,
-.lab-demo-theme article,
-.lab-demo-theme pre,
-.lab-demo-theme textarea,
-.lab-demo-theme input,
-.lab-demo-theme [class*="#f6f3ec"],
-.lab-demo-theme [class*="bg-white"],
-.lab-demo-theme [class*="bg-zinc-950"] {
+.lab-product-theme section > div.border,
+.lab-product-theme article,
+.lab-product-theme pre,
+.lab-product-theme textarea,
+.lab-product-theme input,
+.lab-product-theme [class*="#f6f3ec"],
+.lab-product-theme [class*="bg-white"],
+.lab-product-theme [class*="bg-zinc-950"] {
   border-radius: var(--radius-control);
   overflow: hidden;
 }
 
-.lab-demo-theme .text-zinc-950,
-.lab-demo-theme .text-zinc-900,
-.lab-demo-theme .text-zinc-800 {
+.lab-product-theme .text-zinc-950,
+.lab-product-theme .text-zinc-900,
+.lab-product-theme .text-zinc-800 {
   color: #f4f4f5 !important;
 }
 
-.lab-demo-theme .text-zinc-700,
-.lab-demo-theme .text-zinc-600 {
+.lab-product-theme .text-zinc-700,
+.lab-product-theme .text-zinc-600 {
   color: #d4d4d8 !important;
 }
 
-.lab-demo-theme .text-zinc-500,
-.lab-demo-theme .text-zinc-400 {
+.lab-product-theme .text-zinc-500,
+.lab-product-theme .text-zinc-400 {
   color: #a1a1aa !important;
 }
 
-.lab-demo-theme .text-blue-700,
-.lab-demo-theme .text-blue-600 {
+.lab-product-theme .text-blue-700,
+.lab-product-theme .text-blue-600 {
   color: #67e8f9 !important;
 }
 
-.lab-demo-theme .text-lime-600,
-.lab-demo-theme .text-emerald-700 {
+.lab-product-theme .text-lime-600,
+.lab-product-theme .text-emerald-700 {
   color: #bef264 !important;
 }
 
-.lab-demo-theme .bg-blue-600 {
+.lab-product-theme .bg-blue-600 {
   background-color: #22d3ee !important;
 }
 
-.lab-demo-theme .bg-lime-100,
-.lab-demo-theme .bg-emerald-50 {
+.lab-product-theme .bg-lime-100,
+.lab-product-theme .bg-emerald-50 {
   background-color: rgba(190, 242, 100, 0.14) !important;
 }
 
-.lab-demo-theme input,
-.lab-demo-theme textarea {
+.lab-product-theme input,
+.lab-product-theme textarea {
   background-color: rgba(2, 6, 12, 0.74) !important;
   border-color: rgba(103, 232, 249, 0.34) !important;
   color: #f4f4f5 !important;
 }
 
-.lab-demo-theme input:focus,
-.lab-demo-theme textarea:focus {
+.lab-product-theme input:focus,
+.lab-product-theme textarea:focus {
   border-color: rgba(190, 242, 100, 0.86) !important;
   outline: none;
 }
 
-.lab-demo-theme button,
-.lab-demo-theme a {
+.lab-product-theme button,
+.lab-product-theme a {
   transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease,
     transform 160ms ease;
 }
 
-.lab-demo-theme button,
-.lab-demo-theme a.border,
-.lab-demo-theme input {
+.lab-product-theme button,
+.lab-product-theme a.border,
+.lab-product-theme input {
   border-radius: var(--radius-control);
 }
 
-.lab-demo-theme span.border,
-.lab-demo-theme .inline-flex.border,
-.lab-demo-theme [class*="px-2.5"],
-.lab-demo-theme [class*="px-3"][class*="py-1"] {
+.lab-product-theme span.border,
+.lab-product-theme .inline-flex.border,
+.lab-product-theme [class*="px-2.5"],
+.lab-product-theme [class*="px-3"][class*="py-1"] {
   border-radius: var(--radius-pill);
 }
 
-.lab-demo-theme button:hover,
-.lab-demo-theme a:hover {
+.lab-product-theme button:hover,
+.lab-product-theme a:hover {
   border-color: rgba(190, 242, 100, 0.88) !important;
 }
 
-.lab-demo-theme .border-dashed {
+.lab-product-theme .border-dashed {
   border-color: rgba(103, 232, 249, 0.34) !important;
 }
 

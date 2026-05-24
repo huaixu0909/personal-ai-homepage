@@ -22,7 +22,7 @@ const stack = [
   ["Embedding", "Qwen Embedding / Local Hash Fallback"],
   ["Vector DB", "Chroma"],
   ["Metadata DB", "SQLite"],
-  ["Frontend", "Next.js Demo Console"],
+  ["Frontend", "Next.js Product Console"],
 ];
 
 const apiGroups = [
@@ -64,7 +64,7 @@ export default function RagAgentProjectPage() {
           <div className="flex gap-5 text-sm text-zinc-400">
             <Link href="/">Home</Link>
             <Link href="/#projects">Projects</Link>
-            <Link href="/demos/rag-agent">Demo</Link>
+            <Link href="/products/rag-agent">Product</Link>
             <a href={githubUrl} target="_blank">
               GitHub
             </a>
@@ -78,17 +78,17 @@ export default function RagAgentProjectPage() {
           企业知识库 RAG Agent System
         </h1>
         <p className="mt-6 max-w-3xl text-lg leading-8 text-zinc-300">
-          一个面向本地知识库问答的 RAG 工程系统。它已经从最小 Demo 演进为包含文档上传、异步解析、
+          一个面向本地知识库问答的 RAG 工程系统。它已经从最小原型演进为包含文档上传、异步解析、
           结构化 chunking、Qwen Embedding、Chroma 向量检索、LangGraph RAG 问答、多轮对话、
           知识库概览和文档管理闭环的可运行原型。
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/demos/rag-agent"
+            href="/products/rag-agent"
             className="rounded-xl border border-[#ecd6a7]/70 bg-[#ecd6a7] px-5 py-3 text-sm font-bold !text-[#10151d] shadow-[0_12px_30px_rgba(236,214,167,0.16)] transition hover:bg-[#f7e7bd]"
           >
-            打开本地 Demo
+            打开产品控制台
           </Link>
           <a
             href={githubUrl}
@@ -174,7 +174,7 @@ export default function RagAgentProjectPage() {
         <h2 className="mt-10 text-2xl font-bold">后续计划</h2>
         <p className="mt-4 max-w-3xl leading-7 text-zinc-300">
           下一阶段可以继续补强流式输出、权限与知识库分区、真实 reranker、文件预览、高级引用定位、
-          评测集与自动化 RAG 质量评估，让系统从本地知识库 Demo 继续走向更完整的工程化知识助手。
+          评测集与自动化 RAG 质量评估，让系统从本地知识库项目 继续走向更完整的工程化知识助手。
         </p>
       </section>
     </main>

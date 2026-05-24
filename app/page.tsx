@@ -12,7 +12,7 @@ const projects = [
     description:
       "支持文档上传、chunking、向量检索、知识库概览问答和 DeepSeek RAG 回答的本地知识库系统。",
     stack: ["FastAPI", "RAG", "Chroma", "LangGraph"],
-    demoHref: "/demos/rag-agent",
+    productHref: "/products/rag-agent",
     detailHref: "/projects/rag-agent",
     githubHref: `${githubUrl}/rag-agent-system`,
     accent: "bg-cyan-300",
@@ -21,11 +21,11 @@ const projects = [
     id: "02",
     name: "Multi-Agent Data Factory",
     cnName: "多 Agent 数据合成平台",
-    status: "v1.5 / Batch Queue",
+    status: "v1.8 / Diversity Control",
     description:
-      "通过条件路由调度独立 Agent 节点生成中文对话，并支持长期记忆、批量任务队列、数据搜索、分页、JSONL 导出和 Persona 演化。",
+      "通过条件路由调度独立 Agent 节点生成中文对话，并支持长期记忆、批量任务队列、数据集版本管理、增强质量评估、去重与多样性控制。",
     stack: ["FastAPI", "DeepSeek", "Scenario", "SQLite"],
-    demoHref: "/demos/multi-agent-data-factory",
+    productHref: "/products/multi-agent-data-factory",
     detailHref: "/projects/multi-agent-data-factory",
     githubHref: `${githubUrl}/multi-agent-data-factory`,
     accent: "bg-lime-300",
@@ -99,7 +99,7 @@ export default function Home() {
               进入项目舱
             </a>
             <Link
-              href="/demos/rag-agent"
+              href="/products/rag-agent"
               className="border border-zinc-500 bg-white/5 px-5 py-3 text-sm font-semibold text-zinc-100 transition hover:border-lime-300 hover:text-lime-200"
             >
               打开 RAG 控制台
@@ -171,7 +171,7 @@ export default function Home() {
               </h2>
             </div>
             <p className="max-w-xl text-sm leading-7 text-zinc-400">
-              每个项目都尽量保留真实工程形态：后端接口、前端 Demo、本地数据、模型调用和可以逐步演进的技术路线。
+              每个项目都尽量保留真实工程形态：后端接口、前端产品页、本地数据、模型调用和可以逐步演进的技术路线。
             </p>
           </div>
 
@@ -204,10 +204,10 @@ export default function Home() {
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
-                    href={project.demoHref}
+                    href={project.productHref}
                     className="bg-cyan-300 px-4 py-2 text-sm font-black text-zinc-950 transition hover:bg-white"
                   >
-                    本地 Demo
+                    产品控制台
                   </Link>
                   <Link
                     href={project.detailHref}
@@ -233,7 +233,7 @@ export default function Home() {
         <div className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">About</p>
-            <h2 className="font-display mt-3 text-3xl font-black text-white">从 Demo 到工程闭环</h2>
+            <h2 className="font-display mt-3 text-3xl font-black text-white">从产品页到工程闭环</h2>
           </div>
           <p className="text-base leading-8 text-zinc-400">
             这个站点会随着项目一起演进：RAG 项目负责知识库问答与检索质量，Multi-Agent Data Factory 负责数据合成与质量评估。目标不是堆砌概念，而是把每一步能力做成可以运行、可以联调、可以复盘的工程切片。
