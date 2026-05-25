@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import ParticleField from "../../components/ParticleField";
+import { multiAgentApiBaseUrl } from "../../config/api";
 
 type ScenarioType = "code_review" | "customer_complaint" | "technical_interview";
 type ScenarioFilter = "current" | "all" | ScenarioType;
@@ -207,7 +208,7 @@ type Template = {
   apply: () => void;
 };
 
-const apiBaseUrl = "http://localhost:8001";
+const apiBaseUrl = multiAgentApiBaseUrl;
 const pageSize = 10;
 
 const scenarioLabels: Record<ScenarioType, string> = {
@@ -272,6 +273,7 @@ export default function MultiAgentDataFactoryProductPage() {
   const [versionName, setVersionName] = useState("");
   const [versionDescription, setVersionDescription] = useState("");
   const [deletingVersionId, setDeletingVersionId] = useState("");
+  const [adminApiKey, setAdminApiKey] = useState("");
 
   const [codeDiff, setCodeDiff] = useState(`+ query = f"SELECT * FROM users WHERE id = {user_id}"
 + cursor.execute(query)
@@ -315,6 +317,14 @@ export default function MultiAgentDataFactoryProductPage() {
   const [deletingConversationId, setDeletingConversationId] = useState("");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
+
+  const isAdminMode = adminApiKey.trim().length > 0;
+  const adminHeaders = useMemo(
+    () => ({
+      "X-Admin-API-Key": adminApiKey.trim(),
+    }),
+    [adminApiKey],
+  );
 
   const activeDescriptor = useMemo(
     () => scenarios.find((item) => item.name === scenario),
@@ -598,6 +608,10 @@ export default function MultiAgentDataFactoryProductPage() {
   }
 
   async function createDatasetVersion() {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能创建数据集版本。");
+      return;
+    }
     const name = versionName.trim() || `dataset-${new Date().toISOString().slice(0, 10)}`;
     setVersionsLoading(true);
     setError("");
@@ -616,7 +630,7 @@ export default function MultiAgentDataFactoryProductPage() {
       };
       const response = await fetch(`${apiBaseUrl}/api/datasets/versions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...adminHeaders },
         body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error(`Create dataset version failed: ${response.status}`);
@@ -634,6 +648,10 @@ export default function MultiAgentDataFactoryProductPage() {
   }
 
   async function deleteDatasetVersion(version: DatasetVersionRecord) {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能删除数据集版本。");
+      return;
+    }
     const confirmed = window.confirm(`确定删除数据集版本 ${version.name} 吗？这不会删除原始 conversation。`);
     if (!confirmed) return;
 
@@ -642,6 +660,7 @@ export default function MultiAgentDataFactoryProductPage() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/datasets/versions/${version.version_id}`, {
         method: "DELETE",
+        headers: adminHeaders,
       });
       if (!response.ok) throw new Error(`Delete dataset version failed: ${response.status}`);
       setDatasetVersions((items) => items.filter((item) => item.version_id !== version.version_id));
@@ -655,6 +674,10 @@ export default function MultiAgentDataFactoryProductPage() {
   }
 
   async function deleteConversationItem(item: ConversationRecord) {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能删除数据。");
+      return;
+    }
     const confirmed = window.confirm(`确定删除数据 ${item.conversation_id} 吗？删除后不会出现在筛选、搜索和导出结果中。`);
     if (!confirmed) return;
 
@@ -663,6 +686,7 @@ export default function MultiAgentDataFactoryProductPage() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/conversations/${item.conversation_id}`, {
         method: "DELETE",
+        headers: adminHeaders,
       });
       if (!response.ok) throw new Error(`Delete failed: ${response.status}`);
       if (conversation?.conversation_id === item.conversation_id) {
@@ -753,12 +777,16 @@ export default function MultiAgentDataFactoryProductPage() {
   }
 
   async function startBatchJob() {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能启动批量任务。");
+      return;
+    }
     setBatchLoading(true);
     setError("");
     try {
       const response = await fetch(`${apiBaseUrl}/api/jobs`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...adminHeaders },
         body: JSON.stringify({
           scenario,
           total: batchTotal,
@@ -835,6 +863,33 @@ export default function MultiAgentDataFactoryProductPage() {
             ) : null}
           </div>
         </div>
+
+        <section className="mt-5 rounded-3xl border border-cyan-300/20 bg-white/[0.08] p-4 backdrop-blur">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+            <label className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">
+              Admin Mode
+              <input
+                type="password"
+                value={adminApiKey}
+                onChange={(event) => setAdminApiKey(event.target.value)}
+                placeholder="ADMIN_API_KEY"
+                className={inputClassName()}
+              />
+            </label>
+            <span
+              className={`rounded-full border px-3 py-2 text-xs font-black ${
+                isAdminMode
+                  ? "border-lime-300/50 bg-lime-300/10 text-lime-200"
+                  : "border-white/15 bg-black/25 text-zinc-500"
+              }`}
+            >
+              {isAdminMode ? "ADMIN ENABLED" : "READ ONLY"}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">
+            单次生成对普通访客开放并按 IP 限流；批量任务、删除数据和数据集版本管理需要管理员密钥。
+          </p>
+        </section>
 
         <div className="mt-6 grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
           <section className="rounded-3xl border border-cyan-300/25 bg-white/[0.08] p-5 backdrop-blur">
@@ -976,6 +1031,7 @@ export default function MultiAgentDataFactoryProductPage() {
               jobs={jobs}
               loading={batchLoading || jobsLoading}
               canSubmit={canSubmit}
+              isAdminMode={isAdminMode}
               onStart={startBatchJob}
               onRefresh={loadJobs}
               onSelect={setActiveJob}
@@ -1008,6 +1064,7 @@ export default function MultiAgentDataFactoryProductPage() {
               versions={datasetVersions}
               versionsLoading={versionsLoading}
               deletingVersionId={deletingVersionId}
+              isAdminMode={isAdminMode}
               onCreateVersion={createDatasetVersion}
               onRefreshVersions={loadDatasetVersions}
               onDeleteVersion={deleteDatasetVersion}
@@ -1331,6 +1388,7 @@ function BatchJobPanel({
   jobs,
   loading,
   canSubmit,
+  isAdminMode,
   onStart,
   onRefresh,
   onSelect,
@@ -1341,6 +1399,7 @@ function BatchJobPanel({
   jobs: BatchJobRecord[];
   loading: boolean;
   canSubmit: boolean;
+  isAdminMode: boolean;
   onStart: () => void;
   onRefresh: () => void;
   onSelect: (job: BatchJobRecord) => void;
@@ -1374,27 +1433,33 @@ function BatchJobPanel({
         </button>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-        <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
-          批量数量：{batchTotal}
-          <input
-            type="range"
-            min={1}
-            max={20}
-            value={batchTotal}
-            onChange={(event) => setBatchTotal(Number(event.target.value))}
-            className="mt-3 w-full"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={!canSubmit || loading}
-          className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
-        >
-          {loading ? "提交中..." : "启动批量任务"}
-        </button>
-      </div>
+      {isAdminMode ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+          <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
+            生成数量：{batchTotal}
+            <input
+              type="range"
+              min={1}
+              max={20}
+              value={batchTotal}
+              onChange={(event) => setBatchTotal(Number(event.target.value))}
+              className="mt-3 w-full"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={!canSubmit || loading}
+            className="rounded-full bg-cyan-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+          >
+            {loading ? "提交中..." : "启动批量任务"}
+          </button>
+        </div>
+      ) : (
+        <p className="mt-4 rounded-2xl border border-dashed border-white/15 p-4 text-xs leading-5 text-zinc-500">
+          当前为只读模式。输入管理员密钥后可启动批量任务。
+        </p>
+      )}
 
       {activeJob ? (
         <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -1469,6 +1534,7 @@ function DatasetPanel({
   versions,
   versionsLoading,
   deletingVersionId,
+  isAdminMode,
   onCreateVersion,
   onRefreshVersions,
   onDeleteVersion,
@@ -1499,6 +1565,7 @@ function DatasetPanel({
   versions: DatasetVersionRecord[];
   versionsLoading: boolean;
   deletingVersionId: string;
+  isAdminMode: boolean;
   onCreateVersion: () => void;
   onRefreshVersions: () => void;
   onDeleteVersion: (version: DatasetVersionRecord) => void;
@@ -1597,28 +1664,34 @@ function DatasetPanel({
           </button>
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <input
-            value={versionName}
-            onChange={(event) => setVersionName(event.target.value)}
-            placeholder="Version name"
-            className={inputClassName()}
-          />
-          <input
-            value={versionDescription}
-            onChange={(event) => setVersionDescription(event.target.value)}
-            placeholder="Description"
-            className={inputClassName()}
-          />
-          <button
-            type="button"
-            onClick={onCreateVersion}
-            disabled={versionsLoading}
-            className="rounded-full bg-lime-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
-          >
-            Create Version
-          </button>
-        </div>
+        {isAdminMode ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+            <input
+              value={versionName}
+              onChange={(event) => setVersionName(event.target.value)}
+              placeholder="Version name"
+              className={inputClassName()}
+            />
+            <input
+              value={versionDescription}
+              onChange={(event) => setVersionDescription(event.target.value)}
+              placeholder="Description"
+              className={inputClassName()}
+            />
+            <button
+              type="button"
+              onClick={onCreateVersion}
+              disabled={versionsLoading}
+              className="rounded-full bg-lime-300 px-4 py-2 text-xs font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+            >
+              Create Version
+            </button>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-2xl border border-dashed border-white/15 p-4 text-xs leading-5 text-zinc-500">
+            当前为只读模式。输入管理员密钥后可创建数据集版本。
+          </p>
+        )}
 
         {versions.length > 0 ? (
           <div className="mt-3 grid gap-2">
@@ -1645,14 +1718,16 @@ function DatasetPanel({
                     >
                       Export
                     </a>
-                    <button
-                      type="button"
-                      onClick={() => onDeleteVersion(version)}
-                      disabled={deletingVersionId === version.version_id}
-                      className="rounded-full border border-red-300/35 px-3 py-1.5 text-xs font-black text-red-200 transition hover:border-red-300 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:text-zinc-600"
-                    >
-                      {deletingVersionId === version.version_id ? "Deleting" : "Delete"}
-                    </button>
+                    {isAdminMode ? (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteVersion(version)}
+                        disabled={deletingVersionId === version.version_id}
+                        className="rounded-full border border-red-300/35 px-3 py-1.5 text-xs font-black text-red-200 transition hover:border-red-300 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:text-zinc-600"
+                      >
+                        {deletingVersionId === version.version_id ? "Deleting" : "Delete"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </article>
@@ -1693,14 +1768,16 @@ function DatasetPanel({
                     ) : null}
                   </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete(item)}
-                  disabled={deletingConversationId === item.conversation_id}
-                  className="rounded-full border border-red-300/35 px-3 py-1.5 text-xs font-black text-red-200 transition hover:border-red-300 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:text-zinc-600"
-                >
-                  {deletingConversationId === item.conversation_id ? "\u5220\u9664\u4e2d" : "\u5220\u9664"}
-                </button>
+                {isAdminMode ? (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(item)}
+                    disabled={deletingConversationId === item.conversation_id}
+                    className="rounded-full border border-red-300/35 px-3 py-1.5 text-xs font-black text-red-200 transition hover:border-red-300 hover:bg-red-300/10 disabled:cursor-not-allowed disabled:text-zinc-600"
+                  >
+                    {deletingConversationId === item.conversation_id ? "删除中" : "删除"}
+                  </button>
+                ) : null}
               </div>
             </article>
           ))}

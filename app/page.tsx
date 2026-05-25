@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ParticleField from "./components/ParticleField";
+import { multiAgentApiBaseUrl, ragApiBaseUrl } from "./config/api";
 
 const githubUrl = "https://github.com/huaixu0909";
 
@@ -34,8 +35,8 @@ const projects = [
 
 const labSignals = [
   ["Homepage", "localhost:3000", "ONLINE"],
-  ["RAG Agent", "localhost:8000", "DEEPSEEK"],
-  ["Data Factory", "localhost:8001", "AGENTS"],
+  ["RAG Agent", ragApiBaseUrl, "DEEPSEEK"],
+  ["Data Factory", multiAgentApiBaseUrl, "AGENTS"],
 ];
 
 const telemetry = [

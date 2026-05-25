@@ -43,6 +43,47 @@ npm.cmd run dev
 http://localhost:3000
 ```
 
+## 前端 API 环境变量
+
+产品页默认使用本地后端地址：
+
+```text
+RAG API: http://localhost:8000
+Multi-Agent API: http://localhost:8001
+```
+
+如需切换本地端口或线上 API，在项目根目录创建 `.env.local`：
+
+```env
+NEXT_PUBLIC_RAG_API_BASE_URL=http://localhost:8000
+NEXT_PUBLIC_MULTI_AGENT_API_BASE_URL=http://localhost:8001
+```
+
+线上部署时可以改为：
+
+```env
+NEXT_PUBLIC_RAG_API_BASE_URL=https://rag-api.your-domain.com
+NEXT_PUBLIC_MULTI_AGENT_API_BASE_URL=https://multi-agent-api.your-domain.com
+```
+
+注意：`.env.local` 会被 `.gitignore` 忽略，不要在前端环境变量中放 API Key。带 `NEXT_PUBLIC_` 的变量会暴露给浏览器，只适合放公开的 API 地址。
+
+## 管理员模式
+
+两个产品页都支持轻量管理员模式。页面中的管理员密钥只会作为请求头发送给对应后端，不会提交到 GitHub：
+
+```text
+X-Admin-API-Key: <ADMIN_API_KEY>
+```
+
+只读模式下，普通访客可以进行检索、问答和单次生成；上传、删除、重建索引、批量任务和数据集版本管理等危险操作会在前端隐藏，并由后端再次校验 `ADMIN_API_KEY`。
+
+部署前请分别在后端 `.env` 中配置：
+
+```env
+ADMIN_API_KEY=请替换为足够长的随机字符串
+```
+
 ## 完整服务启动流程
 
 ### 1. 启动 RAG 后端

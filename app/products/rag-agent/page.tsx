@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import ParticleField from "../../components/ParticleField";
+import { ragApiBaseUrl } from "../../config/api";
 
 type Source = {
   title: string;
@@ -178,7 +179,7 @@ type VectorStoreStatus = {
   embedding_provider: string;
 };
 
-const apiBaseUrl = "http://localhost:8000";
+const apiBaseUrl = ragApiBaseUrl;
 const sampleQuestion = "这份文档里和 RAG 项目经验、技术能力最相关的内容是什么？";
 const documentsPerPage = 10;
 const suggestedDocumentTags = ["简历", "项目文档", "面试资料"];
@@ -274,6 +275,16 @@ export default function RagAgentProductPage() {
   const [error, setError] = useState("");
   const [uploadMessage, setUploadMessage] = useState("");
   const [latency, setLatency] = useState<number | null>(null);
+  const [adminApiKey, setAdminApiKey] = useState("");
+
+  const isAdminMode = adminApiKey.trim().length > 0;
+  const adminHeaders = useCallback(
+    (headers: HeadersInit = {}) => ({
+      ...headers,
+      "X-Admin-API-Key": adminApiKey.trim(),
+    }),
+    [adminApiKey],
+  );
 
   const loadDocuments = useCallback(async (page: number) => {
     const response = await fetch(`${apiBaseUrl}/api/documents?page=${page}&page_size=${documentsPerPage}`);
@@ -372,6 +383,10 @@ export default function RagAgentProductPage() {
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能上传文档。");
+      return;
+    }
 
     setUploadLoading(true);
     setUploadMessage("");
@@ -389,6 +404,7 @@ export default function RagAgentProductPage() {
       selectedFiles.forEach((file) => formData.append("files", file));
       const response = await fetch(`${apiBaseUrl}/api/documents/upload/batch`, {
         method: "POST",
+        headers: adminHeaders(),
         body: formData,
       });
 
@@ -429,6 +445,10 @@ export default function RagAgentProductPage() {
   };
 
   const handleDeleteDocument = async (documentId: string) => {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能删除文档。");
+      return;
+    }
     if (
       !window.confirm(
         "确定删除这个文档吗？系统会同步删除 SQLite 元数据、Chroma 向量索引、原始文件、解析文本和 chunks 文件。",
@@ -443,6 +463,7 @@ export default function RagAgentProductPage() {
     try {
       const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}`, {
         method: "DELETE",
+        headers: adminHeaders(),
       });
 
       if (!response.ok) {
@@ -465,13 +486,17 @@ export default function RagAgentProductPage() {
   };
 
   const handleUpdateDocumentTags = async (documentId: string, tags: string[]) => {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能保存文档标签。");
+      return;
+    }
     setTagSaving(true);
     setError("");
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/documents/${documentId}/tags`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ tags }),
       });
 
@@ -500,12 +525,17 @@ export default function RagAgentProductPage() {
   };
 
   const handleRebuildVectorStore = async () => {
+    if (!isAdminMode) {
+      setError("需要管理员密钥才能重建向量索引。");
+      return;
+    }
     setRebuildLoading(true);
     setError("");
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/vector-store/rebuild`, {
         method: "POST",
+        headers: adminHeaders(),
       });
       if (!response.ok) throw new Error(`索引重建失败：${response.status}`);
       await loadVectorStoreStatus();
@@ -657,6 +687,33 @@ export default function RagAgentProductPage() {
           </div>
         </div>
 
+        <section className="mt-5 border border-zinc-950 bg-white p-4">
+          <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+            <label className="text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+              Admin Mode
+              <input
+                type="password"
+                value={adminApiKey}
+                onChange={(event) => setAdminApiKey(event.target.value)}
+                placeholder="ADMIN_API_KEY"
+                className="mt-2 w-full border border-zinc-950 bg-[#f6f3ec] px-3 py-2 text-sm normal-case tracking-normal text-zinc-950"
+              />
+            </label>
+            <span
+              className={`border px-3 py-2 text-xs font-black ${
+                isAdminMode
+                  ? "border-lime-500 bg-lime-100 text-lime-800"
+                  : "border-zinc-300 bg-zinc-100 text-zinc-500"
+              }`}
+            >
+              {isAdminMode ? "ADMIN ENABLED" : "READ ONLY"}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-5 text-zinc-500">
+            上传、删除、标签保存和重建索引需要管理员密钥；检索和问答对普通访客开放，但后端会按 IP 限流。
+          </p>
+        </section>
+
         <div className="mt-6 grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
           <div className="space-y-5">
             <div className="grid gap-5 lg:grid-cols-2">
@@ -679,29 +736,37 @@ export default function RagAgentProductPage() {
                 <p className="mt-3 text-sm leading-6 text-zinc-600">
                   上传 PDF、Markdown 或 TXT。后端会解析文本、切分 chunks，并写入 Chroma。
                 </p>
-                <input
-                  key={uploadInputKey}
-                  type="file"
-                  accept=".txt,.md,.pdf"
-                  multiple
-                  onChange={handleFileChange}
-                  className="mt-5 w-full border border-zinc-950 bg-[#f6f3ec] p-3 text-sm"
-                />
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleUpload}
-                    disabled={selectedFiles.length === 0 || uploadLoading}
-                    className="border border-zinc-950 bg-zinc-950 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
-                  >
-                    {uploadLoading ? "后台入库中..." : "批量上传并入库"}
-                  </button>
-                  {selectedFiles.length > 0 ? (
-                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-500">
-                      已选择 {selectedFiles.length} 个文件
-                    </span>
-                  ) : null}
-                </div>
+                {isAdminMode ? (
+                  <>
+                    <input
+                      key={uploadInputKey}
+                      type="file"
+                      accept=".txt,.md,.pdf"
+                      multiple
+                      onChange={handleFileChange}
+                      className="mt-5 w-full border border-zinc-950 bg-[#f6f3ec] p-3 text-sm"
+                    />
+                    <div className="mt-4 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={handleUpload}
+                        disabled={selectedFiles.length === 0 || uploadLoading}
+                        className="border border-zinc-950 bg-zinc-950 px-5 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
+                      >
+                        {uploadLoading ? "上传中..." : "上传文档"}
+                      </button>
+                      {selectedFiles.length > 0 ? (
+                        <span className="min-w-0 flex-1 truncate text-sm text-zinc-500">
+                          已选择 {selectedFiles.length} 个文件
+                        </span>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <p className="mt-5 border border-dashed border-zinc-300 bg-[#f6f3ec] p-4 text-sm text-zinc-500">
+                    当前为只读模式。输入管理员密钥后可上传文档。
+                  </p>
+                )}
                 {uploadProgress.length > 0 ? (
                   <div className="mt-4 grid gap-2">
                     {uploadProgress.map((item, index) => (
@@ -872,14 +937,16 @@ export default function RagAgentProductPage() {
                   <span className="border border-zinc-950 bg-[#f6f3ec] px-3 py-1 text-xs font-bold">
                     {totalDocumentChunks} chunks
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleRebuildVectorStore}
-                    disabled={rebuildLoading}
-                    className="border border-zinc-950 px-3 py-1 text-xs font-bold text-blue-700 disabled:text-zinc-400"
-                  >
-                    {rebuildLoading ? "重建中" : "重建索引"}
-                  </button>
+                  {isAdminMode ? (
+                    <button
+                      type="button"
+                      onClick={handleRebuildVectorStore}
+                      disabled={rebuildLoading}
+                      className="border border-zinc-950 px-3 py-1 text-xs font-bold text-blue-700 disabled:text-zinc-400"
+                    >
+                      {rebuildLoading ? "重建中" : "重建索引"}
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
@@ -926,14 +993,16 @@ export default function RagAgentProductPage() {
                               </div>
                             ) : null}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteDocument(document.id)}
-                            disabled={deletingDocumentId === document.id}
-                            className="border border-red-300 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:text-zinc-400"
-                          >
-                            {deletingDocumentId === document.id ? "删除中" : "删除"}
-                          </button>
+                          {isAdminMode ? (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDocument(document.id)}
+                              disabled={deletingDocumentId === document.id}
+                              className="border border-red-300 px-3 py-1 text-xs font-bold text-red-700 hover:bg-red-50 disabled:text-zinc-400"
+                            >
+                              {deletingDocumentId === document.id ? "删除中" : "删除"}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -1231,16 +1300,18 @@ export default function RagAgentProductPage() {
                             {tag}
                           </button>
                         ))}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleUpdateDocumentTags(documentDetail.document.id, parseTagInput(tagDraft))
-                          }
-                          disabled={tagSaving}
-                          className="border border-lime-400 bg-lime-100 px-3 py-1 text-xs font-black text-zinc-950 disabled:opacity-50"
-                        >
-                          {tagSaving ? "保存中..." : "保存标签"}
-                        </button>
+                        {isAdminMode ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleUpdateDocumentTags(documentDetail.document.id, parseTagInput(tagDraft))
+                            }
+                            disabled={tagSaving}
+                            className="border border-lime-400 bg-lime-100 px-3 py-1 text-xs font-black text-zinc-950 disabled:opacity-50"
+                          >
+                            {tagSaving ? "保存中..." : "保存标签"}
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   </div>
