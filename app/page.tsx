@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ParticleField from "./components/ParticleField";
 import { multiAgentApiBaseUrl, ragApiBaseUrl } from "./config/api";
+import { getAllPosts } from "./lib/blog";
 
 const githubUrl = "https://github.com/huaixu0909";
 
@@ -47,6 +48,8 @@ const telemetry = [
 ];
 
 export default function Home() {
+  const latestPosts = getAllPosts().slice(0, 3);
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#05070b] text-zinc-100">
       <ParticleField />
@@ -66,6 +69,9 @@ export default function Home() {
             <a className="transition hover:text-cyan-200" href="#about">
               About
             </a>
+            <Link className="transition hover:text-cyan-200" href="/blog">
+              Blog
+            </Link>
             <a className="transition hover:text-cyan-200" href={githubUrl} target="_blank">
               GitHub
             </a>
@@ -223,6 +229,53 @@ export default function Home() {
                   >
                     GitHub
                   </a>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="relative z-10 border-b border-cyan-300/20 bg-black/30">
+        <div className="mx-auto max-w-7xl px-5 py-16">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">
+                Blog
+              </p>
+              <h2 className="font-display mt-3 text-3xl font-black text-white sm:text-5xl">
+                最新工程笔记
+              </h2>
+            </div>
+            <Link
+              href="/blog"
+              className="border border-cyan-300/45 px-4 py-2 text-sm font-black text-cyan-100 transition hover:border-lime-300 hover:text-lime-200"
+            >
+              查看全部文章
+            </Link>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {latestPosts.map((post) => (
+              <article
+                key={post.slug}
+                className="border border-cyan-300/20 bg-black/28 p-6 transition hover:border-cyan-300/55 hover:bg-cyan-300/[0.05]"
+              >
+                <time className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-500" dateTime={post.date}>
+                  {post.date}
+                </time>
+                <h3 className="mt-4 text-xl font-black text-white">
+                  <Link href={`/blog/${post.slug}`} className="transition hover:text-cyan-200">
+                    {post.title}
+                  </Link>
+                </h3>
+                <p className="mt-4 text-sm leading-7 text-zinc-400">{post.description}</p>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {post.tags.map((tag) => (
+                    <span key={tag} className="rounded-full border border-cyan-300/30 px-2.5 py-1 text-xs font-bold text-cyan-100">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </article>
             ))}
