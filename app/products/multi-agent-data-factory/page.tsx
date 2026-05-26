@@ -1003,7 +1003,7 @@ export default function MultiAgentDataFactoryProductPage() {
                 type="button"
                 onClick={runSimulation}
                 disabled={loading || !canSubmit}
-                className="rounded-full bg-lime-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+                className="rounded-full bg-cyan-600 px-5 py-3 text-sm font-black text-white shadow-[0_0_0_1px_rgba(103,232,249,0.35)] transition hover:bg-cyan-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:shadow-none"
               >
                 {loading ? "生成中..." : "生成多 Agent 对话"}
               </button>

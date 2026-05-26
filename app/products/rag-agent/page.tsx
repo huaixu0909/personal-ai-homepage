@@ -889,7 +889,7 @@ export default function RagAgentProductPage() {
                     type="button"
                     onClick={handleChat}
                     disabled={chatLoading || question.trim().length === 0}
-                    className="bg-lime-300 px-5 py-3 text-sm font-black text-zinc-950 disabled:cursor-not-allowed disabled:bg-zinc-500"
+                    className="bg-cyan-600 px-5 py-3 text-sm font-black text-white shadow-[0_0_0_1px_rgba(103,232,249,0.35)] transition hover:bg-cyan-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:shadow-none"
                   >
                     {chatLoading ? "生成中..." : "生成回答"}
                   </button>
