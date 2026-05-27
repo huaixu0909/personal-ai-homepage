@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   description: "AI Lab 的工程笔记、部署记录和 RAG / Agent 实践文章。",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function BlogPage() {
   const posts = getAllPosts();
 
@@ -29,6 +31,9 @@ export default function BlogPage() {
             <Link className="transition hover:text-cyan-200" href="/products/rag-agent">
               RAG
             </Link>
+            <Link className="transition hover:text-cyan-200" href="/blog/manage">
+              Manage
+            </Link>
           </div>
         </nav>
       </header>
@@ -43,6 +48,12 @@ export default function BlogPage() {
         <p className="mt-6 max-w-3xl text-base leading-8 text-zinc-400">
           记录 RAG、Agent、数据合成、部署和产品化过程中的关键实践。这里的文章会跟随项目一起演进，优先保留可复现的工程细节。
         </p>
+        <Link
+          href="/blog/manage"
+          className="mt-8 inline-flex border border-cyan-300/45 px-4 py-2 text-sm font-black text-cyan-100 transition hover:border-lime-300 hover:text-lime-200"
+        >
+          管理 Markdown 文章
+        </Link>
 
         <div className="mt-12 grid gap-5">
           {posts.map((post) => (

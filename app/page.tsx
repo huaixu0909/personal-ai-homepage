@@ -47,6 +47,8 @@ const telemetry = [
   ["DATA", "Local documents isolated"],
 ];
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   const latestPosts = getAllPosts().slice(0, 3);
 

@@ -2,15 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ParticleField from "../../components/ParticleField";
-import { getAllPostSlugs, getPostBySlug } from "../../lib/blog";
+import { getPostBySlug } from "../../lib/blog";
 
 type BlogPostPageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export function generateStaticParams() {
-  return getAllPostSlugs();
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
