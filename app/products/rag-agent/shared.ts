@@ -161,7 +161,7 @@ export type SearchResponse = {
   total_chunks: number;
   results: SearchResult[];
   mode: "chroma" | "local_hash_embedding";
-  retrieval_strategy?: "hybrid_rerank";
+  retrieval_strategy?: "hybrid_fusion";
   query_terms?: string[];
   fallback_reason?: string;
 };
@@ -218,6 +218,7 @@ export function modeLabel(mode?: string) {
   if (mode === "chroma") return "Chroma";
   if (mode === "local_hash_embedding") return "JSON Fallback";
   if (mode === "hybrid_rerank") return "Hybrid Rerank";
+  if (mode === "hybrid_fusion") return "Hybrid Fusion";
   return mode || "Waiting";
 }
 
