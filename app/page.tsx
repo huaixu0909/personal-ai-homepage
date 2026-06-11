@@ -1,6 +1,6 @@
 import Link from "next/link";
 import ParticleField from "./components/ParticleField";
-import { multiAgentApiBaseUrl, ragApiBaseUrl } from "./config/api";
+import { multiAgentApiBaseUrl, ragApiBaseUrl, yunxiaAgentApiBaseUrl } from "./config/api";
 import { getAllPosts } from "./lib/blog";
 
 const githubUrl = "https://github.com/huaixu0909";
@@ -32,12 +32,26 @@ const projects = [
     githubHref: `${githubUrl}/multi-agent-data-factory`,
     accent: "bg-lime-300",
   },
+  {
+    id: "03",
+    name: "Yunxia Agent",
+    cnName: "云霞智能服务 Agent",
+    status: "v2.0 / Service Agent",
+    description:
+      "面向智能服务场景的多 Agent 后端，支持意图识别、角色路由、对话记忆、知识库检索、监控摘要和端到端评测。",
+    stack: ["FastAPI", "Agent Routing", "Redis", "Chroma"],
+    productHref: "/products/yunxia-agent",
+    detailHref: "/products/yunxia-agent",
+    githubHref: `${githubUrl}/yunxia-agent`,
+    accent: "bg-sky-300",
+  },
 ];
 
 const labSignals = [
   ["Homepage", "localhost:3000", "ONLINE"],
   ["RAG Agent", ragApiBaseUrl, "DEEPSEEK"],
   ["Data Factory", multiAgentApiBaseUrl, "AGENTS"],
+  ["Yunxia Agent", yunxiaAgentApiBaseUrl, "SERVICE"],
 ];
 
 const telemetry = [
@@ -135,7 +149,7 @@ export default function Home() {
                 <p className="text-xs font-black uppercase tracking-[0.24em] text-lime-300">
                   Local Lab Status
                 </p>
-                <h2 className="mt-4 text-3xl font-black text-white">三服务联调工作台</h2>
+                <h2 className="mt-4 text-3xl font-black text-white">四服务联调工作台</h2>
               </div>
               <span className="rounded-full border border-lime-300 px-3 py-1 text-xs font-bold text-lime-300">
                 LIVE
@@ -184,7 +198,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-2">
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
             {projects.map((project) => (
               <article
                 key={project.id}

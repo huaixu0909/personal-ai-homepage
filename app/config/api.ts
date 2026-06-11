@@ -12,3 +12,8 @@ export const multiAgentApiBaseUrl = normalizeApiBaseUrl(
   process.env.NEXT_PUBLIC_MULTI_AGENT_API_BASE_URL,
   "http://localhost:8001",
 );
+
+export const yunxiaAgentApiBaseUrl = normalizeApiBaseUrl(
+  process.env.NEXT_PUBLIC_YUNXIA_AGENT_API_BASE_URL,
+  "http://localhost:8002",
+);
