@@ -546,10 +546,10 @@ export function DatasetPanel({
           最低分
           <select value={minScore} onChange={(event) => setMinScore(event.target.value)} className={inputClassName()}>
             <option value="0">不限</option>
-            <option value="6">6+</option>
-            <option value="7">7+</option>
-            <option value="8">8+</option>
-            <option value="9">9+</option>
+            <option value="3">3+</option>
+            <option value="3.5">3.5+</option>
+            <option value="4">4+</option>
+            <option value="4.5">4.5+</option>
           </select>
         </label>
         <label className="text-xs font-bold uppercase tracking-[0.14em] text-zinc-400">
@@ -681,7 +681,7 @@ export function DatasetPanel({
                   <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
                     <span className="font-bold text-zinc-200">{item.conversation_id}</span>
                     <span className={item.accepted ? "text-lime-300" : "text-amber-300"}>
-                      {item.accepted ? "\u901a\u8fc7" : "\u5f85\u7b5b"} / {item.scores.final_score.toFixed(2)}
+                      {item.accepted ? "\u901a\u8fc7" : "\u5f85\u7b5b"} / {item.scores.final_score.toFixed(2)} / 5
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-2 text-xs text-zinc-500">
@@ -903,7 +903,7 @@ export function QualityPanel({ conversation }: { conversation: ConversationRecor
         </div>
         {conversation ? (
           <span className="rounded-full border border-lime-300 bg-lime-300 px-3 py-1 text-xs font-black text-zinc-950">
-            {conversation.accepted ? "ACCEPTED" : "REJECTED"} / {conversation.scores.final_score.toFixed(2)}
+            {conversation.accepted ? "ACCEPTED" : "REJECTED"} / {conversation.scores.final_score.toFixed(2)} / 5
           </span>
         ) : null}
       </div>
@@ -953,7 +953,7 @@ export function QualityPanel({ conversation }: { conversation: ConversationRecor
               <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.12em] text-zinc-400">
                 <span>Quality Report</span>
                 <span>
-                  Grade {conversation.quality_report.grade} / {conversation.quality_report.decision.toUpperCase()} / threshold {conversation.quality_report.pass_threshold.toFixed(1)}
+                  Grade {conversation.quality_report.grade} / {conversation.quality_report.decision.toUpperCase()} / {conversation.quality_report.score_scale ?? "0-5"} / threshold {conversation.quality_report.pass_threshold.toFixed(1)}
                 </span>
               </div>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -1012,12 +1012,12 @@ export function QualityPanel({ conversation }: { conversation: ConversationRecor
             <div key={key} className="rounded-2xl border border-white/10 bg-black/25 p-3">
               <div className="flex justify-between text-xs font-black uppercase tracking-[0.12em] text-zinc-400">
                 <span>{label}</span>
-                <span>{conversation.scores[key].toFixed(1)}</span>
+                <span>{conversation.scores[key].toFixed(1)} / 5</span>
               </div>
               <div className="mt-3 h-2 rounded-full bg-black">
                 <div
                   className="h-full rounded-full bg-cyan-300"
-                  style={{ width: `${conversation.scores[key] * 10}%` }}
+                  style={{ width: `${Math.min(100, Math.max(0, (conversation.scores[key] / 5) * 100))}%` }}
                 />
               </div>
             </div>
@@ -1030,7 +1030,7 @@ export function QualityPanel({ conversation }: { conversation: ConversationRecor
                   <div key={item.dimension} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
                     <div className="flex items-center justify-between gap-3 text-xs font-black text-zinc-300">
                       <span>{item.label}</span>
-                      <span>{item.score.toFixed(1)} / {item.level}</span>
+                      <span>{item.score.toFixed(1)} / 5 / {item.pass === false ? "fail" : "pass"} / {item.level}</span>
                     </div>
                     <p className="mt-2 text-xs leading-5 text-zinc-500">{item.reason}</p>
                   </div>

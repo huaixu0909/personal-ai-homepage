@@ -41,6 +41,7 @@ export type QualityScores = {
 export type QualityReport = {
   grade: string;
   decision: string;
+  score_scale?: string;
   pass_threshold: number;
   judge_votes: Array<{
     judge: string;
@@ -51,6 +52,7 @@ export type QualityReport = {
     dimension: string;
     label: string;
     score: number;
+    pass?: boolean;
     level: string;
     reason: string;
   }>;
@@ -248,4 +250,3 @@ export const scoreLabels: Array<[keyof QualityScores, string]> = [
   ["training_value", "训练价值"],
   ["safety", "安全性"],
 ];
-
